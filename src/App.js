@@ -7,7 +7,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import {ThemeProvider} from '@mui/material/styles';
 import * as d3 from "d3"
 import _layout from "./data/layout";
-import _data from "./data/2182022";
+// import _data from "./data/2182022";
+// import _data from "./data/nocona_24h";
+import _data from "./data/nocona-jieoyao";
 import * as _ from "lodash";
 import {getRefRange, getUrl} from "./component/ulti"
 import ColorLegend from "./component/ColorLegend";
@@ -23,6 +25,7 @@ import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import {viz} from "./component/leva/Viz";
 import {Radar} from "./component/radar";
+import Sankey from "./component/Sankey";
 
 const ColorModeContext = React.createContext({
     toggleColorMode: () => {
@@ -31,10 +34,15 @@ const ColorModeContext = React.createContext({
 
 const colorByMetric = d3.scaleSequential()
     .interpolator(d3.interpolateTurbo).domain([0,1]);
+const colorByName = d3.scaleOrdinal(["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#dbdb8d", "#9edae5"])
+const colorByVal = d3.scaleSequential(d3.interpolateGreys).domain([1,-0.25]);
+let color= colorByName
 function App() {
     const [scheme, setScheme] = useState({data:{},users:{},time_stamp:[], timerange: [new Date(), new Date()]});
+    const [selectedTime, setSelectedTime] = useState({min:0,max:0,value:[0,0]});
     const [dimensions, setDimensions] = useState([]);
     const [layout, setLayout] = useState(_layout);
+    const [sankeyData, setSankeyData] = useState([]);
     const [_draw3DData, set_draw3DData] = useState([]);
     const [draw3DData, setDraw3DData] = useState([]);
     const [drawUserData, setDrawUserData] = useState([]);
@@ -42,7 +50,7 @@ function App() {
     const [alertMess, setAlertMess] = useState();
     const [isBusy, setIsBusy] = useState("Load data");
     const [mode, setMode] = React.useState('dark');
-    const [selectedUser, setSelectedUser] = React.useState(null);
+    // const [selectedUser, setSelectedUser] = React.useState(null);
     const [selectedComputeMap, setSelectedComputeMap] = React.useState(undefined);
     const [clusterInfo, setClusterInfo] = React.useState({cluster:[],outlyingBins:[],clusterDescription:[],colorCluster:d3.scaleOrdinal(),clusterInfo:{}});
     // const [selectedSer, setSelectedSer] = React.useState(0);
@@ -62,15 +70,18 @@ function App() {
                         setAlertMess({level:"success",message:"Successfully load"})
                         setIsBusy('Process data');
                         const _data = JSON.parse(s.replaceAll("NaN",'null'));
-                        const {scheme, draw3DData, drawUserData, dimensions, layout} = handleData(_data);
+                        const {scheme, draw3DData, drawUserData, dimensions, layout,sankeyData} = handleData(_data);
                         setDimensions(dimensions);
                         setScheme(scheme);
+                        setSankeyData(sankeyData);
                         updateColor(draw3DData, scheme);
                         set_draw3DData(draw3DData);
                         setDrawUserData(drawUserData);
                         // getSelectedDraw3Data({selectedUser},draw3DData,scheme);
                         setLayout(layout);
                         setIsBusy(false);
+                        const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
+                        setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()})
                         recalCluster(scheme, dimensions);
                     }).catch(e=>{
                         setAlertMess({level:"error",message:"Can't load realtime data"})
@@ -80,15 +91,18 @@ function App() {
                     setIsBusy('Load simulation data');
                     setTimeout(() => {
                         setIsBusy('Process data');
-                        const {scheme, draw3DData,drawUserData, dimensions, layout} = handleData(_data);
+                        const {scheme, draw3DData,drawUserData, dimensions,sankeyData, layout} = handleData(_data);
                         setDimensions(dimensions);
                         setScheme(scheme);
                         updateColor(draw3DData, scheme);
                         set_draw3DData(draw3DData);
+                        setSankeyData(sankeyData);
                         setDrawUserData(drawUserData);
                         // getSelectedDraw3Data({selectedUser},draw3DData,scheme);
                         setLayout(layout);
                         setIsBusy(false);
+                        const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
+                        setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()});
                         console.log('Init data')
                         recalCluster(scheme, dimensions);
 
@@ -103,6 +117,7 @@ function App() {
         option["Dataset cluster"] = "cluster"
         return option;
     },[dimensions])
+    const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"User":{value:undefined,options:Object.keys(scheme.users)}}),[scheme.users]);
     const [{selectedSer},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"Color by",value:0,
             onChange:(val)=>{
                 updateColor(_draw3DData,scheme,val);
@@ -111,49 +126,15 @@ function App() {
                 setDraw3DData([...draw3DData]);
             },transient:false}
     }),[dimensions,_draw3DData,draw3DData,scheme]);
+    // useControls("Setting",()=>{
+    //     console.log(dimensions,selectedSer,dimensions[selectedSer])
+    //     if (dimensions[selectedSer])
+    //         return {minMax:{label:'',transient:false,editable:false,value:dimensions[selectedSer]?`Min: ${dimensions[selectedSer].min} Max: ${dimensions[selectedSer].max}`:`Min:_ Max:_`}}
+    //     else
+    //         return {}
+    // },[dimensions,selectedSer])
     const [{metricRangeMinMax},setMetricRangeMinMax] = useControls("Setting",()=>(
-        {metricRangeMinMax:{value:false, label:'Show min-max',onChange:(val)=>{
-            if (val){
-                dimensions.forEach(dim=>{
-                    dim.range = [dim.min,dim.max];
-                    dim.scale.domain(dim.range)
-                })
-            }else{
-                dimensions.forEach(dim=>{
-                    dim.range = dim.possibleUnit.range.slice();
-                    dim.scale.domain(dim.range)
-                })
-            }
-
-            // setDimensions(dimensions);
-            if (scheme.computers) {
-                Object.keys(scheme.computers).forEach(d => {
-                    scheme.time_stamp.forEach((t, ti) => {
-                        dimensions.forEach((dim, ki) => {
-                            scheme.tsnedata[d][ti][ki] = dimensions[ki].scale(scheme.computers[d][dim.text][ti] ?? undefined) ?? null;
-                        })
-                    })
-                });
-                // setScheme({...scheme});
-                if (selectedSer==='cluster'){
-                    console.log('selectedSer changed')
-                    recalCluster(scheme, dimensions,({clusterInfo,scheme})=>{
-                        if (selectedSer==='cluster') {
-                            setScheme(scheme);
-                            updateColor(_draw3DData, scheme,undefined,clusterInfo);
-                            set_draw3DData([..._draw3DData]);
-                            draw3DData.forEach(d=>d.possArr=[...d.possArr]);
-                            setDraw3DData([...draw3DData]);
-                        }
-                    })
-                }else{
-                    updateColor(_draw3DData, scheme);
-                    set_draw3DData([..._draw3DData]);
-                    draw3DData.forEach(d => d.possArr = [...d.possArr]);
-                    setDraw3DData([...draw3DData]);
-                }
-            }
-        }}}));
+        {metricRangeMinMax:{value:false, label:'Min-Max scale'}}));
     useEffect(()=>{
         if (metricRangeMinMax){
             dimensions.forEach(dim=>{
@@ -195,22 +176,26 @@ function App() {
                 setDraw3DData([...draw3DData]);
             }
         }
-    },[metricRangeMinMax])
+    },[metricRangeMinMax]);
+
     const metricSetting= useMemo(()=>{
         if (dimensions[selectedSer]){
-            return {minMax:{label:'',transient:false,editable:false,value:dimensions[selectedSer]?`Min: ${dimensions[selectedSer].min} Max: ${dimensions[selectedSer].max}`:`Min:_ Max:_`},
+            const range = (dimensions[selectedSer]??{range:[0,1]}).range;
+            return {
                 legend:colorLegend({label:'Legend',
                 value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
 
             metricTrigger:{value:false, label:'Filter'}
-        ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:(dimensions[selectedSer]??{range:[0,1]}).range[0],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
-        ,stackOption:{render:(get)=>get("Setting.metricTrigger"),value:false,label:"Stack?"}
+        ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:[range[0],range[1]],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
+        ,stackOption:{render:(get)=>get("Setting.metricTrigger"),value:false,label:"Stack"}
         ,suddenThreshold:{value:0,min:0,max:(dimensions[selectedSer]??{max:1}).max,step:0.1, label:"Sudden Change"}}
         }else{
             return {}
         }
     },[dimensions,selectedUser,selectedSer,draw3DData,scheme,metricRangeMinMax]);
+
     const [config,setConfig] = useControls("Setting",()=>(metricSetting),[dimensions,selectedUser,selectedSer,draw3DData,scheme,metricRangeMinMax]);
+
     const binopt = useControls("DatasetCluster",{clusterMethod:{label:'Method',value:'leaderbin',options:['leaderbin','kmean']},
         normMethod:{value:'l2',options:['l1','l2']},
         bin:folder({startBinGridSize:{value:10,render:()=>false},range:{value:[8,9], min:1,step:1, max:20}},{label:'parameter',render:(get)=>get("DatasetCluster.clusterMethod")==="leaderbin"}),
@@ -287,6 +272,9 @@ function App() {
                             </div> </div>)
                     }
                 </div>}),
+        "Missing Dimension":viz({label:clusterInfo.outlyingBins&&<>Missing Dimension: {(clusterInfo.outlyingBins.missingData)?Object.keys(clusterInfo.outlyingBins.missingData).length:0} temporal instances</>,value:0,
+            com:<div style={{width:'100%',display:'flex',flexWrap: "wrap",justifyContent: "space-between"}}></div>
+                })
     },[clusterInfo,scheme,_draw3DData]);
 
     const colorMode = React.useMemo(
@@ -322,6 +310,16 @@ function App() {
             }),
         [mode],
     );
+    const changeSankeyData = (choice,opts={}) =>{
+        const {computers,jobs,time_stamp} = opts.scheme??scheme;
+        if(choice==='core'){
+            return handleDataComputeByUser_core({computers,jobs,timespan:time_stamp})
+        }else{
+            // console.log('compute')
+            return handleDataComputeByUser_compute({computers,jobs,timespan:time_stamp})
+        }
+    }
+
     const handleData = useCallback((_data) => {
         if (_data.time_stamp[0] > 999999999999999999)
             _data.time_stamp = _data.time_stamp.map(d => new Date(d / 1000000));
@@ -388,6 +386,7 @@ function App() {
                 });
                 item.key = d;
                 item.timestep = ti;
+                item.name = d;
                 return item
             })
         });
@@ -402,10 +401,11 @@ function App() {
                 delete _data.jobs_info[job_id]
                 return;
             }
+            _data.jobs_info[job_id].finish_time = _data.jobs_info[job_id].finish_time??_data.jobs_info[job_id].end_time;
             const user_name = _data.jobs_info[job_id].user_name;
-            const job_name = _data.jobs_info[job_id].job_name;
-            const start_time = _data.jobs_info[job_id].start_time> 999999999999999999?(_data.jobs_info[job_id].start_time/1000000) :_data.jobs_info[job_id].start_time;
-            const end_time = _data.jobs_info[job_id].finish_time> 999999999999999999?(_data.jobs_info[job_id].finish_time/1000000) :_data.jobs_info[job_id].finish_time;
+            const job_name = _data.jobs_info[job_id].job_name??_data.jobs_info[job_id].name;
+            const start_time = adjustTime(_data.jobs_info[job_id].start_time);
+            const end_time = adjustTime(_data.jobs_info[job_id].finish_time);
             const node_list = _data.jobs_info[job_id].node_list??_data.jobs_info[job_id].nodes;
             const cpus_ = _data.jobs_info[job_id].cpus??(_data.jobs_info[job_id].cpu_cores);
             const cores = cpus_/node_list.length;
@@ -433,7 +433,13 @@ function App() {
 
 
 
-        const {users} = handleCUJ({computers,jobs},_data.time_stamp)
+        const {users} = handleCUJ({computers,jobs},_data.time_stamp);
+        const result = handleDataComputeByUser(computers,jobs,_data.time_stamp);
+        const jobCompTimeline = result.data;
+        const noJobMap = result.noJobMap;
+
+        const {jobTimeline, jobarrdata,userarrdata,_userarrdata,minMaxDataCompJob,minMaxDataUser} = handleDataComputeByJob({tsnedata,computers,jobs,users,timespan:_data.time_stamp});
+
 
         // 3D
         const reverseLayout = {};
@@ -461,72 +467,281 @@ function App() {
 
 
         const draw3DData = [{key:'all', possArr:[],position: [0,0,0]}];
-        compute.forEach(d=>{
-            computers[d[0]].position = reverseLayout[d[0]].position;
-            computers[d[0]].drawData = _data.time_stamp.map((t,i)=>{
-                    const poss = [computers[d[0]].position[0],computers[d[0]].position[1],computers[d[0]].position[2]+i];
-                    poss.offset = computers[d[0]].position;
-                    poss.data = {key:d[0],timestep:i,toolTip:<table>
-                            <tbody>
-                            <tr><td colSpan={2}>{t.toLocaleString()}</td></tr>
-                            <tr><td>Name</td><td>{d[0]}</td></tr>
-                            {dimensions.map(s=><tr key={s.text}><td>{s.text}</td><td>{d[1][s.text][i]}</td></tr>)}
-                            {computers[d[0]].job_id[i]?<><tr><td>#Jobs</td><td>{computers[d[0]].job_id[i].length}</td></tr>
-                            <tr><td>Job Id</td><td>{computers[d[0]].job_id[i].join(',')}</td></tr>
-                            <tr><td>Users</td><td>{computers[d[0]].users[i].join(',')}</td></tr></>:
-                            <tr><td colSpan={2}>No job</td></tr>}
-                            </tbody>
-                        </table>,
-                    values:tsnedata[d[0]][i]};
-                    draw3DData[0].possArr.push(poss);
-                    return poss;
-                });
-        });
+        // compute.forEach(d=>{
+        //     computers[d[0]].position = reverseLayout[d[0]].position;
+        //     computers[d[0]].drawData = _data.time_stamp.map((t,i)=>{
+        //             const poss = [computers[d[0]].position[0],computers[d[0]].position[1],computers[d[0]].position[2]+i];
+        //             poss.offset = computers[d[0]].position;
+        //             poss.data = {key:d[0],timestep:i,toolTip:<table>
+        //                     <tbody>
+        //                     <tr><td colSpan={2}>{t.toLocaleString()}</td></tr>
+        //                     <tr><td>Name</td><td>{d[0]}</td></tr>
+        //                     {dimensions.map(s=><tr key={s.text}><td>{s.text}</td><td>{d[1][s.text][i]}</td></tr>)}
+        //                     {computers[d[0]].job_id[i]?<><tr><td>#Jobs</td><td>{computers[d[0]].job_id[i].length}</td></tr>
+        //                     <tr><td>Job Id</td><td>{computers[d[0]].job_id[i].join(', ')}</td></tr>
+        //                     <tr><td>Users</td><td>{computers[d[0]].users[i].join(', ')}</td></tr></>:
+        //                     <tr><td colSpan={2}>No job</td></tr>}
+        //                     </tbody>
+        //                 </table>,
+        //             values:tsnedata[d[0]][i]};
+        //             draw3DData[0].possArr.push(poss);
+        //             return poss;
+        //         });
+        // });
         const drawUserData =[];
         drawUserData.links=[];
-
-        Object.keys(users).forEach(selectedUser=>{
-            const user = [0,-2,0];
-            user.links = [];
-            console.log(users[selectedUser])
-            user.toolTip=<table>
-                <tbody>
-                <tr><td>Name</td><td>{selectedUser}</td></tr>
-                {users[selectedUser].job?<><tr><td>#Jobs</td><td>{users[selectedUser].job.length}</td></tr>
-                        <tr><td>Job Id</td><td>{users[selectedUser].job.join(',')}</td></tr>
-                        <tr><td>#Nodes</td><td>{users[selectedUser].node.length}</td></tr>
-                        <tr><td>Nodes</td><td>{users[selectedUser].node.join(',')}</td></tr></>:
-                    <tr><td colSpan={2}>No job</td></tr>}
-                </tbody>
-            </table>;
-            const comtract = {};
-            users[selectedUser].node.forEach(com=>{
-                if (computers[com]) {
-                    computers[com].users.forEach((u, i) => {
-                        if (u.find(d => d === selectedUser)){
-                            const compP = computers[com].position;
-                            user.links.push(compP);
-                            if(!comtract[com]) {
-                                drawUserData.links.push([user, compP]);
-                                comtract[com] = true;
-                            }
-                        }
-                    });
-                }
-            });
-            user[0] = d3.mean(user.links,d=>d[0]);
-            user.x = user[0];
-            user.y = user[1];
-            drawUserData.push(user);
-        });
+        //
+        // Object.keys(users).forEach(selectedUser=>{
+        //     const user = [0,-2,0];
+        //     user.links = [];
+        //     user.toolTip=<table>
+        //         <tbody>
+        //         <tr><td>Name</td><td>{selectedUser}</td></tr>
+        //         {users[selectedUser].job?<><tr><td>#Jobs</td><td>{users[selectedUser].job.length}</td></tr>
+        //                 <tr><td>Job Id</td><td>{users[selectedUser].job.join(',')}</td></tr>
+        //                 <tr><td>#Nodes</td><td>{users[selectedUser].node.length}</td></tr>
+        //                 <tr><td>Nodes</td><td>{users[selectedUser].node.join(',')}</td></tr></>:
+        //             <tr><td colSpan={2}>No job</td></tr>}
+        //         </tbody>
+        //     </table>;
+        //     const comtract = {};
+        //     users[selectedUser].node.forEach(com=>{
+        //         if (computers[com]) {
+        //             computers[com].users.forEach((u, i) => {
+        //                 if (u.find(d => d === selectedUser)){
+        //                     const compP = computers[com].position;
+        //                     user.links.push(compP);
+        //                     if(!comtract[com]) {
+        //                         drawUserData.links.push([user, compP]);
+        //                         comtract[com] = true;
+        //                     }
+        //                 }
+        //             });
+        //         }
+        //     });
+        //     user[0] = d3.mean(user.links,d=>d[0]);
+        //     user.x = user[0];
+        //     user.y = user[1];
+        //     drawUserData.push(user);
+        // });
         console.log('#links ',drawUserData.links.length)
         const userSize = d3.scaleSqrt().domain(d3.extent(drawUserData,d=>d.links.length)).range([0.5,1]);
         drawUserData.forEach(d=>d.scale=userSize(d.links.length));
 
-        setDataset({dataInfo:`from ${timerange[0].toLocaleString()}\nto ${timerange[1].toLocaleString()}`})
-        return {scheme: {data: _data,users,computers,jobs,tsnedata,time_stamp:_data.time_stamp, timerange}, draw3DData, drawUserData,dimensions,layout}
-    }, [layout]);
+        setDataset({dataInfo:`from ${timerange[0].toLocaleString()}\nto ${timerange[1].toLocaleString()}`});
 
+        const scheme = {data: _data,users,computers,jobs,tsnedata,time_stamp:_data.time_stamp, timerange};
+        scheme.emptyMap=noJobMap;
+        scheme.jobArr=jobarrdata;
+        scheme.userArr=userarrdata;
+        scheme._userarrdata=_userarrdata;
+        const sankeyData = changeSankeyData('compute_num',{scheme});
+        return {scheme, draw3DData, drawUserData,dimensions,layout,sankeyData}
+    }, [layout]);
+    function handleDataComputeByJob(input){
+        const tsnedata = input.tsnedata??{};
+        const computers=input.computers??{};
+        const _jobs=input.jobs??{};
+        const _users = input.users??{};
+        const jobs = {};
+        const users = {};
+        const jobarrdata = {};
+        const _jobarrdata = {};
+        const userarrdata = {};
+        const _userarrdata = {};
+        const minMaxDataCompJob = {};
+        const minMaxDataUser = {};
+        const timespan = input.timespan??[];
+        Object.keys(_jobs).forEach(k=>{
+            // if (_jobs[k].total_nodes>1){
+            jobs[k] = _jobs[k];
+            _jobarrdata[k] = [];
+            jobarrdata[k] = [];
+            minMaxDataCompJob[k] = [];
+
+            if (!jobs[k].isJobarray){
+                users[_jobs[k].user_name] = _users[_jobs[k].user_name];
+                userarrdata[_jobs[k].user_name] = [];
+                _userarrdata[_jobs[k].user_name] = [];
+                minMaxDataUser[_jobs[k].user_name] = [];
+            }else{
+                jobs[k].comp = {};
+            }
+            // }
+        });
+
+        let data = [];
+        for (let comp in computers){
+            let item = {key:comp,values:[] ,range:[Infinity,-Infinity],data:computers[comp]};
+            let job = {};
+            computers[comp].job_id.forEach((jIDs,i)=>{
+                let jobArr = jIDs.map(j=>jobs[j]).filter(d=>{
+                    if (d){
+                        if (!_jobarrdata[d.job_id][i]){
+                            const empty = [];
+                            empty.name='';
+                            empty.timestep=0;
+                            _jobarrdata[d.job_id][i]=(empty);
+                        }
+                        const tsne_comp = tsnedata[comp];
+                        if(tsne_comp)
+                            _jobarrdata[d.job_id][i].push(tsne_comp[i]);
+                        if (!_userarrdata[d.user_name][i]){
+                            const empty = [];
+                            empty.name='';
+                            empty.timestep=0;
+                            empty.cpus=0;
+                            _userarrdata[d.user_name][i] =(empty);
+                        }
+                        if(tsne_comp)
+                            _userarrdata[d.user_name][i].push(tsne_comp[i]);
+
+                        if(d.job_array_id){
+                            if (!_jobarrdata[d.job_array_id][i]){
+                                const empty = [];
+                                empty.name='';
+                                empty.timestep=0;
+                                _jobarrdata[d.job_array_id][i]=(empty);
+                            }
+                            if (!jobs[d.job_array_id].comp[i])
+                                jobs[d.job_array_id].comp[i] = {};
+                            if (!jobs[d.job_array_id].comp[i][comp]){
+                                jobs[d.job_array_id].comp[i][comp] = 1;
+                                _jobarrdata[d.job_array_id][i].push(tsnedata[comp][i]);
+                            }
+                        }
+                        return true;
+                    }
+                    return false
+                });
+                const key = jobArr.map(d=>d.job_id).toString();
+                if (!job[key])
+                    job[key]=true;
+                else
+                    jobArr=[];
+
+                if (jobArr.length){
+                    let username = d3.groups(jobArr,d=>d.job_id)
+                        .map(d=>({key:d[0],value:d3.sum(d[1],(e)=>e.node_list_obj[comp])}));
+
+                    username.sort((a,b)=>d3.ascending(a.key,b.key))
+                    item.values.push(username);
+                }else
+                    item.values.push(null);
+                item[''+timespan[i]] = item.values[i];
+            });
+            data.push(item);
+        }
+        Object.keys(_jobarrdata).forEach(k=>{
+            _jobarrdata[k].forEach((d,i)=>{
+                const timestep = _jobarrdata[k][i][0].timestep;
+                let valueMin= [];
+                let valueMax= [];
+                let value = _jobarrdata[k][i][0].map((d,si)=>{
+                    const vals = _jobarrdata[k][i].map(d=>d[si]);
+                    valueMin.push(d3.min(vals));
+                    valueMax.push(d3.max(vals));
+                    let sum = 0;
+                    let total = 0;
+                    _jobarrdata[k][i].forEach(d=>{
+                        if(d[si]!==undefined) {
+                            const val = computers[d.name].cpus[i][k];
+                            sum += d[si] * val;
+                            total += val;
+                        }
+                    });
+                    // if(total&& _.isNaN(sum/total))
+                    //     debugger
+                    if(!total)
+                        return undefined;
+                    else
+                        return sum/total;
+                    // return  d3.mean(vals);
+                });
+                value.name = k;
+                valueMin.name = k;
+                valueMax.name = k;
+                value.timestep = timestep;
+                valueMin.timestep = timestep;
+                valueMax.timestep = timestep;
+                minMaxDataCompJob[k][i] = [valueMin,valueMax]
+                jobarrdata[k][i] = (value);
+            })
+        })
+
+        Object.keys(_userarrdata).forEach(k=>{
+            _userarrdata[k].forEach((d,i)=>{
+                const timestep = _userarrdata[k][i][0].timestep;
+                let valueMin = [];
+                let valueMax = [];
+                let value = _userarrdata[k][i][0].map((d,si)=>{
+                    const vals = _userarrdata[k][i].map(d=>d[si]);
+                    valueMin.push(d3.min(vals));
+                    valueMax.push(d3.max(vals));
+                    return  d3.mean(vals);
+                });
+                value.name = k;
+                valueMin.name = k;
+                valueMax.name = k;
+                value.timestep = timestep;
+                valueMin.timestep = timestep;
+                valueMax.timestep = timestep;
+                minMaxDataUser[k][i] = [valueMin,valueMax]
+                userarrdata[k][i] = (value);
+            })
+        })
+        data.sort((a,b)=>+a.range[0]-b.range[0])
+        return {jobTimeline:data, jobarrdata,userarrdata,_userarrdata,minMaxDataCompJob,minMaxDataUser};
+    }
+    function handleDataComputeByUser(computers,jobs,timeStamp){
+        //start
+        let data = [];
+
+        let obj = {};
+        let noJobMap = {};
+        for (let j in jobs){
+            obj[j] = {key:j,values:timeStamp.map(t=>null),range:[Infinity,-Infinity],data:jobs[j],arr:[]};
+            data.push(obj[j]);
+        }
+        for (let comp in computers){
+            let jonj = {};
+            noJobMap[comp] = [];
+            computers[comp].job_id.forEach((jIDs,i)=>{
+                if (jIDs.length){
+                    jIDs.forEach(j=>{
+                        if (!jonj[j]){
+                            let item = obj[j];
+                            if (!item.values[i]) {
+                                item.values[i] = [];
+                                item.values[i].total = 0;
+                            }
+                            const compData = {key:comp,type:'compute',value:1};
+                            const userData = {key:jobs[j].user_name,type:'user',value:1};
+                            const current = item.values[i];
+                            if(current!==null && current.length){
+                                current.push(compData);
+                                // item.values[i].push(userData);
+                                current.total = (current.total??0) + jobs[j].node_list_obj[comp];
+                                // item.arr.push({time:Layout.timespan[i],value:[compData,{key:j,type:'job',value:1},userData]});
+                                item.arr.push({time:timeStamp[i],value:[{key:j,type:'job',value:1},userData]});
+                                item.arr.push({time:timeStamp[i],value:[compData,{key:j,type:'job',value:1}]});
+                                if(jobs[j].job_array_id){
+                                    // item.arr.push({time:Layout.timespan[i],value:[compData,{key:jobs[j].job_array_id,type:'job',value:1},userData]});
+                                    item.arr.push({time:timeStamp[i],value:[compData,{key:jobs[j].job_array_id,type:'job',value:1}]});
+                                    item.arr.push({time:timeStamp[i],value:[{key:jobs[j].job_array_id,type:'job',value:1},userData]});
+                                }
+                            }
+                            jonj[j]=true;
+                        }
+                    });
+                }else{
+                    noJobMap[comp][i] = 1;
+                }
+            });
+        }
+        // data.sort((a,b)=>+a.range[0]-b.range[0])
+        return {data,noJobMap};
+    }
     function handleCUJ({computers,jobs},timestamp){
         const compute_user= {};
         const jobm = {}
@@ -575,6 +790,43 @@ function App() {
             users[k].node.forEach((c)=> computers[c]?computers[c].user.push(k):'');
         });
         return {users}
+    }
+    function handleDataComputeByUser_compute({computers,jobs,timespan}){
+        debugger
+        let data = [];
+        for (let comp in computers){
+            let item = {key:comp,data:computers[comp]};
+            computers[comp].job_id.forEach((jIDs,i)=>{
+                if (jIDs.length){
+                    let jobArr = jIDs.map(j=>jobs[j]);
+                    let username = d3.groups(jobArr,d=>d.user_name).map(d=>({key:d[0],value:1}));
+                    username.total = d3.sum(username,e=>e.value);
+                    username.jobs = [jIDs,jobArr];
+                    item[''+timespan[i]] = username.sort((a,b)=>d3.ascending(a.key,b.key));
+                }else
+                    item[''+timespan[i]] = null;
+            });
+            data.push(item);
+        }
+        return data;
+    }
+    function handleDataComputeByUser_core({computers,jobs,timespan}){
+        let data = [];
+        for (let comp in computers){
+            let item = {key:comp,data:computers[comp]};
+            computers[comp].job_id.forEach((jIDs,i)=>{
+                if (jIDs.length){
+                    let jobArr = jIDs.map(j=>jobs[j]);
+                    let username = d3.groups(jobArr,d=>d.user_name).map(d=>({key:d[0],value:d3.sum(d[1],(e)=>e.node_list_obj[comp]??0)}));
+                    username.total = d3.sum(username,e=>e.value);
+                    username.jobs = [jIDs,jobArr];
+                    item[''+timespan[i]] = username.sort((a,b)=>d3.ascending(a.key,b.key));
+                }else
+                    item[''+timespan[i]] = null;
+            });
+            data.push(item);
+        }
+        return data;
     }
     function getUsers(jobs,computers,timestep=1){
         const user_job = d3.groups(Object.entries(jobs),(d)=>(d[1])['user_name'],(d)=>(d[0]).split('.')[0].trim());
@@ -639,129 +891,59 @@ function App() {
             setConfig({minMax: dimensions[selectedSer] ? `Min: ${dimensions[selectedSer].min} Max: ${dimensions[selectedSer].max}` : `Min:_ Max:_`})
         }catch(e){}
     },[dimensions,scheme,_draw3DData,selectedSer,clusterInfo]);
-    useEffect(()=>{
-        getSelectedDraw3Data({selectedUser,selectedComputeMap},_draw3DData,scheme,config.stackOption)
-    },[_draw3DData,selectedComputeMap,selectedUser,scheme,config.suddenThreshold,config.metricTrigger,config.metricFilter,config.stackOption])
-    function getSelectedDraw3Data({selectedUser,selectedComputeMap},__draw3DData=_draw3DData,_scheme=scheme,isStack = config.stackOption){
-        let isFilter = (!!selectedComputeMap || selectedUser || (!!config.suddenThreshold) || config.metricTrigger);
-        // selectedComputeMap=selectedComputeMap??{};
-        console.log('isstack',isStack)
-        let flatmap =selectedComputeMap?ob2arr(selectedComputeMap):undefined;
-        function ob2arr(selectedComputeMap){
-            let flatmap =[];
-            Object.keys(selectedComputeMap).forEach(comp=>Object.keys(selectedComputeMap[comp]).forEach(timestep=>flatmap.push({key:`${comp}|${timestep}`,comp,timestep})));
-            return flatmap;
-        }
-        if (config.metricTrigger) {
-            let sudenCompMap={};
-            Object.keys(_scheme.computers).forEach(comp=>{
-                const arr = _scheme.computers[comp][dimensions[selectedSer].text];
-                const isEmpty = !sudenCompMap[comp];
-                if (isEmpty)
-                    sudenCompMap[comp] = {};
-                arr.forEach((d,ti)=>{
-                    if (d>=config.metricFilter){
-                        sudenCompMap[comp][ti] =true;
-                    }
-                });
-                if (isEmpty && (!Object.keys(sudenCompMap[comp]).length))
-                    delete  sudenCompMap[comp]
-            });
-            let suddenMap = ob2arr(sudenCompMap);
-            if(flatmap)
-                flatmap = _.intersectionBy(flatmap,suddenMap,'key');
-            else
-                flatmap = suddenMap;
-        }
-        if (config.suddenThreshold){
-            let sudenCompMap={}
-            Object.keys(_scheme.computers).forEach(comp=>{
-                const arr = _scheme.computers[comp][dimensions[selectedSer].text];
-                const isEmpty = !sudenCompMap[comp];
-                if (isEmpty)
-                    sudenCompMap[comp] = {};
-                arr.sudden.forEach((d,ti)=>{
-                    if (Math.abs(d)>=config.suddenThreshold){
-                        sudenCompMap[comp][ti] =true;
-                        sudenCompMap[comp][ti-1] = true;
-                    }
-                });
-                if (isEmpty && (!Object.keys(sudenCompMap[comp]).length))
-                    delete  sudenCompMap[comp]
-            });
-            let suddenMap = ob2arr(sudenCompMap);
-            if(flatmap)
-                flatmap = _.intersectionBy(flatmap,suddenMap,'key');
-            else
-                flatmap = suddenMap;
-        }
-        if (selectedUser) {
-            let selectedUsereMap = {}
-            _scheme.users[selectedUser].node.forEach(com=>{
-                if (_scheme.computers[com]) {
-                    selectedUsereMap[com] = {};
-                    _scheme.computers[com].users.forEach((u, i) => {
-                        if (u.find(d => d === selectedUser)) selectedUsereMap[com][i] = true;
-                    });
-                }
-            });
-            let usereMap = ob2arr(selectedUsereMap);
-            if (flatmap)
-                flatmap = _.intersectionBy(flatmap,usereMap,'key');
-            else
-                flatmap = usereMap;
-        }else if (!isFilter){
-            setDraw3DData(__draw3DData);
-            setLine3D([])
-            return
-        }else if (!flatmap || (flatmap.length===0)){
-            setDraw3DData([]);
-            setLine3D([])
-            return
-        }
-        selectedComputeMap={};
-        flatmap.forEach(({comp,timestep})=>{
-            if (!selectedComputeMap[comp])
-                selectedComputeMap[comp] = {};
-            selectedComputeMap[comp][timestep] = true;
-        })
-        const newdata = getData();
-        setDraw3DData(newdata.draw3DData);
-        setLine3D(newdata.line3D)
-        function getData(){
-            const data = [{...__draw3DData[0],possArr:[]}];
-            const lines=[];
-            Object.keys(selectedComputeMap).forEach(comp=>{
-                if (_scheme.computers[comp]){
-                    let poss = [];
-                    let count=0;
-                    _scheme.computers[comp].drawData.forEach(d=>{
-                        if (selectedComputeMap[comp][d.data.timestep]){
-                            if (isStack)
-                                d[2] = d.offset[2]+count;
-                            else
-                                d[2] = d.offset[2]+d.data.timestep;
-                            data[0].possArr.push(d);
-                            count++;
-                        }
 
-                        // add line data
-                        poss.push(d)
-                    });
-                    if (count)
-                        lines.push(poss)
-                }
-            })
-            return {draw3DData:data,line3D:lines};
+    const onColorModeChange = (val) =>{
+        const opt = {}
+        if(val==='name'){
+            color = colorByName;
+        }else{
+            color = colorByVal;
+            opt.selectedService = +val;
+            // if(this.state.pieDataHighlight)
+            //     opt.LineData = this.changeLineData({selectedService:+val},this.state.pieDataHighlight.data._source.map((e)=>e.key));
+            // else
+            //     opt.LineData = this.changeLineData({selectedService:+val});
         }
+        // opt.colorBy = val;
+        // this.setState(opt as NonNullable<States>)
     }
-
+    const getMetric= useCallback((v)=>{
+        const colorBy ='name';
+        return colorBy!=='name'?((colorBy!=='cluster')?`${dimensions[selectedSer].text}: ${+d3.format('.2f')(dimensions[selectedSer].scale.invert(v))}`:(clusterInfo.clusterDescription?(clusterInfo.clusterDescription[v]??'mixed'):'')):''
+    },[dimensions,selectedSer,clusterInfo]);
     return (
         <ColorModeContext.Provider value={colorMode}>
             <ThemeProvider theme={theme}>
                 <CssBaseline/>
                     <div style={{height: "100vh",width:'100wh',overflow:'hidden'}}>
-                        <Layout3D layout={layout} time_stamp={scheme.time_stamp} data={draw3DData} users={drawUserData} line3D={line3D} selectService={selectedSer} stackOption={config.stackOption}/>
+                        <Layout3D layout={layout}
+                                  time_stamp={scheme.time_stamp}
+                                  data={draw3DData}
+                                  users={drawUserData}
+                                  line3D={line3D}
+                                  selectedSer={selectedSer}
+                                  stackOption={config.stackOption}
+                                  getKey={(d)=>d.data.key+' '+d.data.timestep}
+
+                                  sankeyData={sankeyData}
+                                  color={color}
+                                  colorByName={colorByName}
+                                  colorCluster={clusterInfo.colorCluster}
+                            // colorBy={colorBy}
+                                  colorBy={'name'}
+                                  getMetric={getMetric}
+                                  metrics = {scheme.tsnedata}
+                                  theme={theme}
+                                  dimensions={dimensions}
+                                  selectedTime = {selectedTime.arr}
+                            // mouseOver = {this.onMouseOverSankey.bind(this)}
+                            // mouseLeave = {this.onMouseLeaveSankey.bind(this)}
+                            // sankeyComputeSelected = {sankeyComputeSelected}
+                                  config={config}
+                                  selectedComputeMap={selectedComputeMap}
+                                  selectedUser={selectedUser}
+                                  scheme={scheme}
+                        />
                     </div>
                     <Grid container style={{position:'absolute',top:0,left:0}}>
                         <Container maxWidth="lg">
@@ -770,40 +952,37 @@ function App() {
                                     <h3>Quanah <Typography variant="subtitle1" style={{display:'inline-block'}}>from {scheme.timerange[0].toLocaleString()} to {scheme.timerange[1].toLocaleString()}</Typography></h3>
                                 </Grid>
                                 <Grid item xs={6} container spacing={1}>
-                                    {/*<Grid item xs={3}>*/}
-                                    {/*    <FormControl fullWidth>*/}
-                                    {/*        <InputLabel >Metrics</InputLabel>*/}
-                                    {/*        <Select*/}
-                                    {/*            labelId="demo-simple-select-label"*/}
-                                    {/*            id="demo-simple-select"*/}
-                                    {/*            value={selectedSer}*/}
-                                    {/*            label="Age"*/}
-                                    {/*            size={"small"}*/}
-                                    {/*            onChange={onDimensionChange}*/}
-                                    {/*        >*/}
-                                    {/*            {dimensions.map((d,i)=><MenuItem key={d.index} value={i}>{d.text}</MenuItem>)}*/}
-                                    {/*        </Select>*/}
-                                    {/*    </FormControl>*/}
-                                    {/*</Grid>*/}
+                                    <Grid item xs={12}>
+                                        <FormControl fullWidth>
+                                            <InputLabel >Filter Time</InputLabel>
+                                            <Slider
+                                                min={selectedTime.min}
+                                                max={selectedTime.max}
+                                                value={selectedTime.value}
+                                                size={"small"}
+                                                onChange={(e,v)=>setSelectedTime({...selectedTime,value:v,arr:scheme.time_stamp.filter(t=>((+t>=v[0]) && (+t<=v[1])))})}
+                                            />
+                                        </FormControl>
+                                    </Grid>
                                     {/*{dimensions[selectedSer]&&<Grid item xs={7} style={{textAlign:"center"}}>*/}
                                     {/*    {dimensions[selectedSer].text} Min: {dimensions[selectedSer].min} Max: {dimensions[selectedSer].max}*/}
                                     {/*    <div style={{position:'relative'}}><ColorLegend colorScale={colorByMetric} range={dimensions[selectedSer].range}/></div>*/}
                                     {/*</Grid>}*/}
                                 </Grid>
-                                <Grid item xs={2}>
-                                    <Autocomplete
-                                        fullWidth
-                                        size="small"
-                                        disablePortal
-                                        options={Object.keys(scheme.users)}
-                                        value={selectedUser}
-                                        onChange={(event, newValue) => {
-                                            // getSelectedDraw3Data({selectedUser:newValue});
-                                            setSelectedUser(newValue);
-                                        }}
-                                        renderInput={(params) => <TextField {...params} label="Users" />}
-                                    />
-                                </Grid>
+                                {/*<Grid item xs={2}>*/}
+                                {/*    <Autocomplete*/}
+                                {/*        fullWidth*/}
+                                {/*        size="small"*/}
+                                {/*        disablePortal*/}
+                                {/*        options={Object.keys(scheme.users)}*/}
+                                {/*        value={selectedUser}*/}
+                                {/*        onChange={(event, newValue) => {*/}
+                                {/*            // getSelectedDraw3Data({selectedUser:newValue});*/}
+                                {/*            setSelectedUser(newValue);*/}
+                                {/*        }}*/}
+                                {/*        renderInput={(params) => <TextField {...params} label="Users" />}*/}
+                                {/*    />*/}
+                                {/*</Grid>*/}
                                 <Grid item xs={2}>
                                 {
                                     selectedUser&&<>
@@ -834,4 +1013,12 @@ export default App;
 
 function shortArray(arr=[],limit=2){
     return arr.length>limit?(arr.slice(0,limit).join(',')+`, +${arr.length-limit} more`): arr.join(',')
+}
+function adjustTime(d){
+    if (d > 999999999999999999)
+        return d / 1000000;
+    else if (d < 9999999999){
+        return d * 1000;
+    }
+    return d;
 }
