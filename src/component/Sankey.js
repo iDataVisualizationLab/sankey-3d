@@ -201,6 +201,7 @@ export default class Sankey extends React.Component {
             console.time('create links');
             const maxLimit = this.props.maxPerUnit;
             const mapOfSankey = {};
+            debugger
             // nodes = _.shuffle(nodes)
             for (let i = 1; i < keys.length; ++i) {
                 const a = '' + keys[i - 1];
@@ -387,119 +388,30 @@ export default class Sankey extends React.Component {
         });
 
         this.setState({isForceDone: false});
-        // const forceNode = nodes.filter(d=>d.shared);
+        const forceNode = nodes.filter(d=>d.shared);
         debugger
         console.time('Force time');
 
-        // let iterations=0;
-//         this.force = d3.forceSimulation<Node>()
-//             .force("charge", d3.forceManyBody().strength(-50))
-//             .force('x', d3.forceX(this.widthG() / 2).strength(0.015))
-//             .force('y',  d3.forceY(this.heightG() / 2).strength(0.015))
-//             .nodes( forceNode)
-//             .force('link',d3.forceLink<Node,SimulationLinkDatum<Node>>(_links).id(d=>''+d.id).distance(0))
-//             .alpha(1)
-//             .on('tick', () => {
-//                 // iterations++;
-//                 forceNode.forEach( (d,i) =>{
-//                     if(d.x!==undefined && d.y!==undefined) {
-//                         // d.x += ((self.widthG() / 2) - d.x) * 0.05;
-//                         if (d.parentNode !== undefined) {
-//                             if ((nodeObj[d.parentNode]!== undefined) && (nodeObj[d.parentNode].y !== undefined))
-//                                 d.y += ((nodeObj[d.parentNode].y??0) - d.y) * 0.5;
-//
-//                             if (nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
-//                                 nodeObj[d.parentNode].y = d3.mean(nodeObj[d.parentNode].childNodes,e=>nodeObj[e].y);
-//                             }
-//                         } else if (d.childNodes && d.childNodes.length) {
-//                             var yy = d3.mean(d.childNodes, e => nodeObj[e].y);
-//                             if (yy !== undefined)
-//                                 d.y += (yy - d.y) * 0.2;
-//                         }
-//                     }
-//                 });
-//                 // console.log(iterations)
-//                 // console.timeLog('Force time');
-//                 // console.log(forceNode.slice().sort((a,b)=>a.y-b.y).map(d=>d.name))
-// //                 console.log(d3.select<SVGSVGElement, any>('#timarc'))
-// //                 console.log(d3.select<SVGSVGElement, any>('#timarc')
-// //                         .selectAll<SVGTextElement, unknown>('text.l')
-// //                         .data(forceNode)
-// //                         .join('text')
-// //                         .attr('fill', 'white')
-// //                         .attr('class', 'l').text(d => d.name ?? '').attr('x', d => d.x ?? 0).attr('y', d => d.y ?? 0));
-// //                 console.log(_links)
-// //                 console.log(forceNode.slice().sort((a,b)=>a.y-b.y).map(d=>d.name).join(' > '))
-//
-//             })
-//             .on("end",  () => {
-//                 console.time('forceEnd')
-//                 let left = 1;
-//                 const nodep: Record<string, number|undefined> = {};
-//                 forceNode.forEach(d=>{
-//                     if ((d.parentNode !==undefined) && nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
-//                         nodep[d.name] = d3.mean(nodeObj[d.parentNode].childNodes,e=>nodeObj[e].y);
-//                     }else if(d.y){
-//                         nodep[d.name] = d.y;
-//                     }
-//                 });
-//                 Object.keys(nodep).sort((a,b)=>(nodep[a] as number)- (nodep[b] as number))
-//                     .forEach((k,ki)=>nodep[k]= ki*10);
-//                 // console.log(forceNode.slice().sort((a,b)=>a.y-b.y).map(d=>d.name))
-//                 const miny =0;
-//                     graph.nodes.forEach(d=>{
-//                     d._forcey =  nodep[d.name];
-//                     if((d._forcey === undefined) || _.isNaN(d._forcey) ) {
-//                         if (nodep[d.name] === undefined) {
-//                             nodep[d.name] = miny - 10 * (left);
-//                             d._forcey = nodep[d.name];
-//                             left++;
-//                         } else {
-//                             d._forcey = nodep[d.name];
-//                         }
-//                     }
-//                     d.y = d._forcey;
-//                 });
-//                 // graph.nodes.forEach(d=>d._forcey = d.y??nodeObj[d.parentNode].y);
-//                 self.nodeSort = function(a,b){ return (a._forcey-b._forcey)};
-//                 const {nodes,links,linksBySource} = this.renderSankey({graph},0);
-//                 // const {nodes,links} = this.renderSankey({graph},1);
-//                 console.timeEnd('forceEnd')
-//                 console.timeEnd('Force time')
-//                 this.setState({nodes,links,linksBySource,graph,isForceDone:true});
-//             })
-
-        const mapIndex = {};
-        let countmap = 0;
-        const forceNode = nodes.filter(d => {
-            if (d.shared) {
-                mapIndex[d.id] = countmap;
-                countmap++;
-                return true;
-            }
-            return false;
-        });
-        console.log('forceNode length: ', forceNode.length, ' , link length: ', _links.length);
-        if (forceNode.length)
-        this.force
-            .size([this.widthG(), this.heightG()])
-            .nodes(forceNode)
-            .links(_links)
-            .constraints([{axis: "x", offsets: forceNode.map((d, i) => ({node: i, offset: 0})), type: "alignment"}])
-            .jaccardLinkLengths(40, 0.7)
-            // .avoidOverlaps(true)
-            .start(20, 0, 10)
+        let iterations=0;
+        this.force = d3.forceSimulation()
+            .force("charge", d3.forceManyBody().strength(-50))
+            // .force("center", d3.forceCenter(graphicopt.widthG() / 2, graphicopt.heightG() / 2))
+            .force('x', d3.forceX(this.widthG() / 2).strength(0.05))
+            .force('y',  d3.forceY( this.heightG() / 2).strength(0.005))
+            .nodes( forceNode)
+            .force('link',d3.forceLink(_links).id(d=>d.id).distance(0).strength(1))
+            .alpha(1)
             .on('tick', () => {
                 // iterations++;
-                forceNode.forEach((d, i) => {
-                    if (d.x !== undefined && d.y !== undefined) {
+                forceNode.forEach( (d,i) =>{
+                    if(d.x!==undefined && d.y!==undefined) {
                         // d.x += ((self.widthG() / 2) - d.x) * 0.05;
                         if (d.parentNode !== undefined) {
-                            if ((nodeObj[d.parentNode] !== undefined) && (nodeObj[d.parentNode].y !== undefined))
-                                d.y += ((nodeObj[d.parentNode].y ?? 0) - d.y) * 0.5;
+                            if ((nodeObj[d.parentNode]!== undefined) && (nodeObj[d.parentNode].y !== undefined))
+                                d.y += ((nodeObj[d.parentNode].y??0) - d.y) * 0.5;
 
                             if (nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
-                                nodeObj[d.parentNode].y = d3.mean(nodeObj[d.parentNode].childNodes, e => nodeObj[e].y);
+                                nodeObj[d.parentNode].y = d3.mean(nodeObj[d.parentNode].childNodes,e=>nodeObj[e].y);
                             }
                         } else if (d.childNodes && d.childNodes.length) {
                             var yy = d3.mean(d.childNodes, e => nodeObj[e].y);
@@ -508,13 +420,6 @@ export default class Sankey extends React.Component {
                         }
                     }
                 });
-
-                // console.log(d3.select<SVGSVGElement, any>('#timarc')
-                //         .selectAll<SVGTextElement, unknown>('text.l')
-                //         .data(forceNode)
-                //         .join(  'text')
-                //         .attr('fill', 'white')
-                //         .attr('class', 'l').text(d => d.name ?? '').attr('x', d => d.x ?? 0).attr('y', d => d.y ?? 0));
                 d3.select('#timarc')
                     .selectAll('path.l')
                     .data(_links)
@@ -530,25 +435,26 @@ export default class Sankey extends React.Component {
                     else
                         return "M" + d.target.x + "," + d.target.y + "A" + dr + "," + dr + " 0 0,1 " + d.source.x + "," + d.source.y;
                 }
+
             })
-            .on('end', () => {
-                console.time('forceEnd')
+            .on("end",  () => {
+                console.time('forceEnd');
                 let left = 1;
                 const nodep = {};
-                forceNode.forEach(d => {
-                    if ((d.parentNode !== undefined) && nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
-                        nodep[d.name] = d3.mean(nodeObj[d.parentNode].childNodes, e => nodeObj[e].y);
-                    } else if (d.y) {
+                forceNode.forEach(d=>{
+                    if ((d.parentNode !==undefined) && nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
+                        nodep[d.name] = d3.mean(nodeObj[d.parentNode].childNodes,e=>nodeObj[e].y);
+                    }else if(d.y){
                         nodep[d.name] = d.y;
                     }
                 });
-                Object.keys(nodep).sort((a, b) => (nodep[a]) - (nodep[b]))
-                    .forEach((k, ki) => nodep[k] = ki * 10);
+                Object.keys(nodep).sort((a,b)=>(nodep[a])- (nodep[b]))
+                    .forEach((k,ki)=>nodep[k]= ki*10);
                 // console.log(forceNode.slice().sort((a,b)=>a.y-b.y).map(d=>d.name))
-                const miny = 0;
-                graph.nodes.forEach(d => {
-                    d._forcey = nodep[d.name];
-                    if ((d._forcey === undefined) || _.isNaN(d._forcey)) {
+                const miny =0;
+                    graph.nodes.forEach(d=>{
+                    d._forcey =  nodep[d.name];
+                    if((d._forcey === undefined) || _.isNaN(d._forcey) ) {
                         if (nodep[d.name] === undefined) {
                             nodep[d.name] = miny - 10 * (left);
                             d._forcey = nodep[d.name];
@@ -560,20 +466,121 @@ export default class Sankey extends React.Component {
                     d.y = d._forcey;
                 });
                 // graph.nodes.forEach(d=>d._forcey = d.y??nodeObj[d.parentNode].y);
-                self.nodeSort = function (a, b) {
-                    return (a._forcey - b._forcey)
-                };
-                const {nodes, links, linksBySource} = this.renderSankey({graph}, 0);
+                self.nodeSort = function(a,b){ return (a._forcey-b._forcey)};
+                const {nodes,links,linksBySource} = this.renderSankey({graph},0);
                 // const {nodes,links} = this.renderSankey({graph},1);
                 console.timeEnd('forceEnd')
                 console.timeEnd('Force time')
-                this.setState({nodes, links, linksBySource, graph, isForceDone: true});
+                this.setState({nodes,links,linksBySource,graph,isForceDone:true});
                 if (this.props.sankeyResult)
                     this.props.sankeyResult(linksBySource,this.getColorScale.bind(this));
-            });
-        // this.force.stop();
-        // this.force.alpha(1).restart();
-        this.setState({times, graph})
+            })
+
+        // const mapIndex = {};
+        // let countmap = 0;
+        // const forceNode = nodes.filter(d => {
+        //     if (d.shared) {
+        //         mapIndex[d.id] = countmap;
+        //         countmap++;
+        //         return true;
+        //     }
+        //     return false;
+        // });
+        // console.log('forceNode length: ', forceNode.length, ' , link length: ', _links.length);
+        // if (forceNode.length)
+        // this.force
+        //     .size([this.widthG(), this.heightG()])
+        //     .nodes(forceNode)
+        //     .links(_links)
+        //     .constraints([{axis: "x", offsets: forceNode.map((d, i) => ({node: i, offset: 0})), type: "alignment"}])
+        //     .jaccardLinkLengths(40, 0.7)
+        //     // .avoidOverlaps(true)
+        //     .start(20, 0, 10)
+        //     .on('tick', () => {
+        //         // iterations++;
+        //         forceNode.forEach((d, i) => {
+        //             if (d.x !== undefined && d.y !== undefined) {
+        //                 // d.x += ((self.widthG() / 2) - d.x) * 0.05;
+        //                 if (d.parentNode !== undefined) {
+        //                     if ((nodeObj[d.parentNode] !== undefined) && (nodeObj[d.parentNode].y !== undefined))
+        //                         d.y += ((nodeObj[d.parentNode].y ?? 0) - d.y) * 0.5;
+        //
+        //                     if (nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
+        //                         nodeObj[d.parentNode].y = d3.mean(nodeObj[d.parentNode].childNodes, e => nodeObj[e].y);
+        //                     }
+        //                 } else if (d.childNodes && d.childNodes.length) {
+        //                     var yy = d3.mean(d.childNodes, e => nodeObj[e].y);
+        //                     if (yy !== undefined)
+        //                         d.y += (yy - d.y) * 0.2;
+        //                 }
+        //             }
+        //         });
+        //
+        //         // console.log(d3.select<SVGSVGElement, any>('#timarc')
+        //         //         .selectAll<SVGTextElement, unknown>('text.l')
+        //         //         .data(forceNode)
+        //         //         .join(  'text')
+        //         //         .attr('fill', 'white')
+        //         //         .attr('class', 'l').text(d => d.name ?? '').attr('x', d => d.x ?? 0).attr('y', d => d.y ?? 0));
+        //         d3.select('#timarc')
+        //             .selectAll('path.l')
+        //             .data(_links)
+        //             .join('path')
+        //             .attr('class', 'l').attr('d', linkArc).attr('stroke', 'white').attr('fill', 'none');
+        //
+        //         function linkArc(d) {
+        //             var dx = d.target.x - d.source.x,
+        //                 dy = d.target.y - d.source.y,
+        //                 dr = Math.sqrt(dx * dx + dy * dy) / 2;
+        //             if (d.source.y < d.target.y)
+        //                 return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+        //             else
+        //                 return "M" + d.target.x + "," + d.target.y + "A" + dr + "," + dr + " 0 0,1 " + d.source.x + "," + d.source.y;
+        //         }
+        //     })
+        //     .on('end', () => {
+        //         console.time('forceEnd')
+        //         let left = 1;
+        //         const nodep = {};
+        //         forceNode.forEach(d => {
+        //             if ((d.parentNode !== undefined) && nodeObj[d.parentNode].childNodes && nodeObj[d.parentNode].childNodes.length) {
+        //                 nodep[d.name] = d3.mean(nodeObj[d.parentNode].childNodes, e => nodeObj[e].y);
+        //             } else if (d.y) {
+        //                 nodep[d.name] = d.y;
+        //             }
+        //         });
+        //         Object.keys(nodep).sort((a, b) => (nodep[a]) - (nodep[b]))
+        //             .forEach((k, ki) => nodep[k] = ki * 10);
+        //         // console.log(forceNode.slice().sort((a,b)=>a.y-b.y).map(d=>d.name))
+        //         const miny = 0;
+        //         graph.nodes.forEach(d => {
+        //             d._forcey = nodep[d.name];
+        //             if ((d._forcey === undefined) || _.isNaN(d._forcey)) {
+        //                 if (nodep[d.name] === undefined) {
+        //                     nodep[d.name] = miny - 10 * (left);
+        //                     d._forcey = nodep[d.name];
+        //                     left++;
+        //                 } else {
+        //                     d._forcey = nodep[d.name];
+        //                 }
+        //             }
+        //             d.y = d._forcey;
+        //         });
+        //         // graph.nodes.forEach(d=>d._forcey = d.y??nodeObj[d.parentNode].y);
+        //         self.nodeSort = function (a, b) {
+        //             return (a._forcey - b._forcey)
+        //         };
+        //         const {nodes, links, linksBySource} = this.renderSankey({graph}, 0);
+        //         // const {nodes,links} = this.renderSankey({graph},1);
+        //         console.timeEnd('forceEnd')
+        //         console.timeEnd('Force time')
+        //         this.setState({nodes, links, linksBySource, graph, isForceDone: true});
+        //         if (this.props.sankeyResult)
+        //             this.props.sankeyResult(linksBySource,this.getColorScale.bind(this));
+        //     });
+        // // this.force.stop();
+        // // this.force.alpha(1).restart();
+        // this.setState({times, graph})
     }
 
 // order () {
@@ -676,6 +683,7 @@ export default class Sankey extends React.Component {
 
             l._class = str2class(l.source.name)
         });
+        console.log('#links: ',links.length);
         return {nodes, links, linksBySource: linksBySource, graph}
     }
 
@@ -914,7 +922,8 @@ export default class Sankey extends React.Component {
                                         {this.renderLink(d)}
                                         {highlight && (highlight.list[d.key]) ? d.values.map(j => <g key={j._id}
                                                                                                      stroke={this.props.theme.isDark ? 'black' : 'white'}
-                                                                                                     style={{pointerEvents: this.state.freezing ? 'all' : 'none'}}>{renderjob(j, this.props.lineaScale, this.props.maxPerUnit, this.getColorScale.bind(this), this.onMouseOverJob.bind(this), this.onReleaseJob.bind(this), this.getValue.bind(this), highlightJob)}</g>) : ''}
+                                                                                                     // style={{pointerEvents: this.state.freezing ? 'all' : 'none'}}
+                                        >{renderjob(j, this.props.lineaScale, this.props.maxPerUnit, this.getColorScale.bind(this), this.onMouseOverJob.bind(this), this.onReleaseJob.bind(this), this.getValue.bind(this), highlightJob)}</g>) : ''}
                                     </NodeElement>)
                                 }
                             </g>

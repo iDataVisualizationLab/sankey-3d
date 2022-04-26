@@ -25,7 +25,7 @@ const useStyles = makeStyles({
         width: '300px'
     },
 });
-export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01],timeGap=0,adjustscale=(d)=>d,getKey=((d,i)=>i),stackOption=false,...others}) {
+export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01],timeGap=0,adjustscale=(d)=>d,getKey=((d,i)=>i),stackOption=false,onUserhighlight,onReleaseUserhighlight,...others}) {
     const classes = useStyles();
     const [hovered, set] = useState();
     const [freeze, setfreeze] = useState(false);
@@ -116,8 +116,12 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
     },[timeGap])
     return <><instancedMesh ref={meshRef} args={[null, null, data.length]}
                             onClick={(e)=>{setfreeze(!freeze); if(freeze) set(undefined)}}
-                            onPointerMove={(e) => {e.stopPropagation(); if(!freeze) set(e.instanceId)}}
-                            onPointerOut={(e) => {e.stopPropagation(); if(!freeze) set(undefined)}}>
+                            onPointerMove={(e) => {e.stopPropagation(); if(!freeze){ set(e.instanceId);
+                            const h = {};
+                            h[data[e.instanceId].data.user]=true;
+                                onUserhighlight(h)
+                            }}}
+                            onPointerOut={(e) => {e.stopPropagation(); if(!freeze) {set(undefined); onReleaseUserhighlight()}}}>
         <boxGeometry args={size}>
             <instancedBufferAttribute attachObject={['attributes', 'color']} args={[colorArray, 4]} />
         </boxGeometry>

@@ -13,7 +13,7 @@ import NodeLayout from "./NodeLayout";
 import UserLayout from "./UserLayout";
 import LineLayout from "./LineLayout";
 import LayoutMap from "./LayoutMap";
-import {useControls} from "leva";
+import {useControls,button} from "leva";
 import Effects from "./Effects";
 import {Vector3} from "three";
 import TimeAxis from "./TimeAxis";
@@ -23,7 +23,7 @@ import Sankey, {horizontalSource,horizontalTarget} from "./Sankey";
 import * as d3 from "d3";
 import * as _ from "lodash";
 import ValueAxis from "./ValueAxis";
-const SEQUNCE=[{x:0,y:0,z:100,zoom:30}];
+const SEQUNCE=[{x:-90,y:-50,z:200,zoom:30}];//[{x:-40,y:10,z:100,zoom:30}];//[{x:-20,y:20,z:100,zoom:30}];
 
 const width = 1200;
 const height = 700;
@@ -31,15 +31,20 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
     const [currentSequnce,setCurrentSequnce] = useState(0);
     const config3D = useControls("3D",{timeGap:{value:5,min:1,max:10,step:0.1,label: 'Bar height'},
         light:{value:0.5,min:0,max:1,step:0.01},
+        resetView: button((get) => {debugger
+        cameraRef.current.pointOfView({x:-90,y:-50,z:200,zoom:30}, 4000);}),
         cameraAnimate:{value:false}});
     const cameraRef = useRef(null);
     const [_draw3DData,set_Draw3DData] = useState([]);
     const [draw3DData,setDraw3DData] = useState([]);
-    const [userHighlight,setUserHighlight] = useState(undefined)
+    const [_userHighlight,set_UserHighlight] = useState(undefined);
+    const [userHighlight,setUserHighlight] = useState(undefined);
     useEffect(()=>{
         if (config3D.cameraAnimate)
-            if (cameraRef.current)
-                cameraRef.current.pointOfView(SEQUNCE[currentSequnce], 4000)
+            if (cameraRef.current) {
+                setCurrentSequnce(0)
+                cameraRef.current.pointOfView(SEQUNCE[0], 4000);
+            }
     },[config3D.cameraAnimate])
     useEffect(()=>{
         if (cameraRef.current) {
@@ -62,9 +67,7 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
         const lineaScale = 0;
         const max = maxPerUnit;
         result.forEach(l=>{
-            console.log(l.key)
             l.values.forEach(d=>{
-                debugger
                 const source = horizontalSource(d);
                 const target = horizontalTarget(d);
                 const thick = d.width;
@@ -112,7 +115,7 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
                     const poss = [(source[0]+width/2)/40,-(y+_thick/2)/40,0];
                     poss.offset = [0,0,0];
                     poss.color = colorS;
-                    poss.size = [width/40,_thick/40,1]
+                    poss.size = [2*width/40,_thick/40,1]
                     poss.data = {key:e,timestep:d.source.layer,toolTip:<table>
                             <tbody>
                             <tr><td colSpan={2}>{time_stamp[d.source.layer].toLocaleString()}</td></tr>
@@ -212,14 +215,17 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
                 flatmap = usereMap;
         }else if (!isFilter){
             setDraw3DData(__draw3DData);
-            if (userHighlight!==undefined)
+            if (userHighlight!==undefined) {
+                set_UserHighlight();
                 setUserHighlight();
+            }
             return
         }else if (!flatmap || (flatmap.length===0)){
             setDraw3DData([]);
-            if ((!userHighlight) || Object.keys(userHighlight).length)
-                setUserHighlight({})
-            return
+            if ((!userHighlight) || Object.keys(userHighlight).length) {
+                set_UserHighlight({});
+                setUserHighlight({});
+            }return
         }
         selectedComputeMap={};
         flatmap.forEach(({comp,timestep})=>{
@@ -229,8 +235,8 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
         })
         const newdata = getData();
         setDraw3DData(newdata.draw3DData);
-        console.log(newdata.users)
-        setUserHighlight(newdata.users)
+        set_UserHighlight(newdata.users);
+        setUserHighlight(newdata.users);
         function getData(){
             const users={};
             const data = __draw3DData.filter(d=>{
@@ -253,7 +259,6 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
         return (d)=>d;
     },[config.metricTrigger,config.metricFilter,dimensions,selectedSer])
     return <Canvas mode="concurrent"
-                   shadows gl={{ antialias: true }}
     >
         {/*<ambientLight intensity={config.light}/>*/}
         {/*<pointLight position={[150, 150, 150]} intensity={0.55} />*/}
@@ -279,13 +284,15 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
                     <NodeLayout data={draw3DData} timeGap={config3D.timeGap} getKey={getKey}
                                 selectService={selectedSer}
                                 adjustscale={adjustscale()}
+                                onUserhighlight={(d)=>setUserHighlight(d)}
+                                onReleaseUserhighlight={()=>setUserHighlight(_userHighlight)}
                     />
                     <ValueAxis range={(config.metricTrigger&&dimensions[selectedSer])?config.metricFilter:(dimensions[selectedSer]?dimensions[selectedSer].range:[])} timeGap={config3D.timeGap}/>
                 </group>
                 {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
                     {/*<TimeAxis data={time_stamp} timeGap={config3D.timeGap}/></>}*/}
                 {/*<UserLayout data={users}/>*/}
-                <Html transform distanceFactor={10}  zIndexRange={[1, 0]} prepend >
+                <Html transform distanceFactor={10}  zIndexRange={[1, 0]} style={{pointerEvents:'nonw'}} >
                     <Sankey
                         width={width} height={height}
                         data={sankeyData}
@@ -309,13 +316,13 @@ const Layout3D = function({time_stamp,sankeyData,maxPerUnit=1,color,config,selec
                     />
                 </Html>
             </group>
-            <GizmoHelper alignment={"top-left"} margin={[80, 80]}>
+            <GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>
                 <GizmoViewcube/>
              </GizmoHelper>
             {/*<BakeShadows />*/}
         {/*</Suspense>*/}
 
-        <CustomCamera ref={cameraRef} cameraAnimate={config3D.cameraAnimate}/>
+        <CustomCamera ref={cameraRef}/>
         <Effects />
     </Canvas>
 }

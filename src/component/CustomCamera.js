@@ -64,7 +64,7 @@ const CustomCamera = React.forwardRef(({cameraAnimate=false,...props},ref)=> {
         current: divRef.current
     }),[camera]);
     useFrame((state)=>{
-        if (cameraAnimate)
+        // if (cameraAnimate)
             TWEEN.update()
     })
 

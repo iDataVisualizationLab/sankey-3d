@@ -6,10 +6,11 @@ import {Grid, Backdrop, CircularProgress, createTheme,FormControl,InputLabel,Sel
 import CssBaseline from '@mui/material/CssBaseline';
 import {ThemeProvider} from '@mui/material/styles';
 import * as d3 from "d3"
+
 import _layout from "./data/layout";
 // import _data from "./data/2182022";
-// import _data from "./data/nocona_24h";
-import _data from "./data/nocona-jieoyao";
+import _data from "./data/nocona_24h";
+// import _data from "./data/nocona-jieoyao";
 import * as _ from "lodash";
 import {getRefRange, getUrl} from "./component/ulti"
 import ColorLegend from "./component/ColorLegend";
@@ -31,12 +32,13 @@ const ColorModeContext = React.createContext({
     toggleColorMode: () => {
     }
 });
-
+const coreLimit = 128;
 const colorByMetric = d3.scaleSequential()
     .interpolator(d3.interpolateTurbo).domain([0,1]);
 const colorByName = d3.scaleOrdinal(["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#dbdb8d", "#9edae5"])
 const colorByVal = d3.scaleSequential(d3.interpolateGreys).domain([1,-0.25]);
-let color= colorByName
+let color= colorByName;
+const userEncoded = false;
 function App() {
     const [scheme, setScheme] = useState({data:{},users:{},time_stamp:[], timerange: [new Date(), new Date()]});
     const [selectedTime, setSelectedTime] = useState({min:0,max:0,value:[0,0]});
@@ -182,8 +184,8 @@ function App() {
         if (dimensions[selectedSer]){
             const range = (dimensions[selectedSer]??{range:[0,1]}).range;
             return {
-                legend:colorLegend({label:'Legend',
-                value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
+                // legend:colorLegend({label:'Legend',
+                // value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
 
             metricTrigger:{value:false, label:'Filter'}
         ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:[range[0],range[1]],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
@@ -321,6 +323,17 @@ function App() {
     }
 
     const handleData = useCallback((_data) => {
+        if (userEncoded){
+            let userCodecount = 1;
+            const userEncode = {};
+            const user_names = d3.groups(Object.values(_data.jobs_info),d=>d.user_name)
+            user_names.forEach((g)=>{
+                const name = g[0];
+                userEncode[name] = 'user'+userCodecount;
+                userCodecount++;
+                g[1].forEach(d=>d.user_name = userEncode[name])
+            })
+        }
         if (_data.time_stamp[0] > 999999999999999999)
             _data.time_stamp = _data.time_stamp.map(d => new Date(d / 1000000));
         else if (_data.time_stamp[0] < 9999999999){
@@ -328,7 +341,16 @@ function App() {
         }
         const timerange = d3.extent(_data.time_stamp);
         const compute = Object.entries(_data.nodes_info);
-        const dimensionKeys = Object.keys(compute[0][1]).filter(s=>compute[0][1][s].find(d=>_.isNumber(d)));
+        const allDim = {};
+        compute.forEach(d=>{
+            Object.keys(d[1]).forEach(k=>{
+                if (!allDim[k]){
+                    allDim[k] = d[1][k].find(d=>_.isNumber(d))!==undefined?'number':'other';
+                }
+            })
+        });
+        // const dimensionKeys = Object.keys(compute[0][1]).filter(s=>compute[0][1][s].find(d=>_.isNumber(d)));
+        const dimensionKeys = Object.keys(allDim).filter(k=>allDim[k]==='number');
         const dimensions = dimensionKeys.map((s,i)=>({text:s,
             index:i,range:[Infinity,-Infinity],scale:d3.scaleLinear(),
             order:i,
@@ -378,24 +400,12 @@ function App() {
             d.range = metricRangeMinMax?[d.min,d.max]:recomend.range.slice();
             d.scale.domain(d.range)
         });
-        const tsnedata ={};
-        Object.keys(computers).forEach(d=>{
-            tsnedata[d] = _data.time_stamp.map((t,ti)=>{
-                const item = dimensionKeys.map((k,ki)=>{
-                    return dimensions[ki].scale(computers[d][k][ti]??undefined)??null;
-                });
-                item.key = d;
-                item.timestep = ti;
-                item.name = d;
-                return item
-            })
-        });
+
 
         const jobs = {};
         const job_ref = undefined;
         // need update core info to job_ref
         Object.keys(_data.jobs_info).forEach(job_id=>{
-
             // remove job not belong to this cluster
             if (jobonnode&&(!jobonnode[job_id])){
                 delete _data.jobs_info[job_id]
@@ -434,6 +444,21 @@ function App() {
 
 
         const {users} = handleCUJ({computers,jobs},_data.time_stamp);
+        // add new DIm
+        handleWorkload(computers,dimensions,dimensionKeys,metricRangeMinMax);
+        const tsnedata ={};
+        Object.keys(computers).forEach(d=>{
+            tsnedata[d] = _data.time_stamp.map((t,ti)=>{
+                const item = dimensionKeys.map((k,ki)=>{
+                    return dimensions[ki].scale(computers[d][k][ti]??undefined)??null;
+                });
+                item.key = d;
+                item.timestep = ti;
+                item.name = d;
+                return item
+            })
+        });
+        debugger
         const result = handleDataComputeByUser(computers,jobs,_data.time_stamp);
         const jobCompTimeline = result.data;
         const noJobMap = result.noJobMap;
@@ -536,8 +561,52 @@ function App() {
         scheme.userArr=userarrdata;
         scheme._userarrdata=_userarrdata;
         const sankeyData = changeSankeyData('compute_num',{scheme});
+        console.log(dimensions)
         return {scheme, draw3DData, drawUserData,dimensions,layout,sankeyData}
     }, [layout]);
+    function handleWorkload(computers,dimensions,dimensionKeys,metricRangeMinMax) {
+        const k = 'compute utitlization';
+        dimensionKeys.push(k)
+        const i = dimensions.length;
+        const dimT = {text:k,
+            index:i,
+            range:[Infinity,-Infinity],
+            scale:d3.scaleLinear(),
+            order:i,
+            possibleUnit:{type:null,unit:null,range:[0,100]},
+            enable:true};
+        dimensions.push(dimT)
+        dimensions.forEach((d,i)=>{
+            d.angle = (i/dimensions.length)*2*Math.PI;
+        });
+        function getdata(d){
+            return (d3.sum(Object.values(d))/coreLimit) *100;
+        }
+        Object.keys(computers).forEach((comp)=> {
+            computers[comp][k]=[];
+            computers[comp][k].sudden = [];
+            computers[comp][k][0] = getdata(computers[comp]['cpus'][0]);
+            let current = computers[comp][k][0];
+            computers[comp]['cpus'].forEach((_d, ti) => {
+                const d = getdata(_d??{});
+                computers[comp][k][ti] = d;
+                if (_d !== null) {
+                    if (d < dimT.range[0])
+                        dimT.range[0] = d;
+                    if (d > dimT.range[1])
+                        dimT.range[1] = d;
+                }
+                computers[comp][k].sudden[ti] = (+d) - current;
+                current = +d;
+            })
+        });
+
+        dimT.min = dimT.range[0];
+        dimT.max = dimT.range[1];
+        dimT.range = metricRangeMinMax?[dimT.min,dimT.max]:[0,100];
+        dimT.scale.domain(dimT.range)
+
+    }
     function handleDataComputeByJob(input){
         const tsnedata = input.tsnedata??{};
         const computers=input.computers??{};
@@ -792,7 +861,6 @@ function App() {
         return {users}
     }
     function handleDataComputeByUser_compute({computers,jobs,timespan}){
-        debugger
         let data = [];
         for (let comp in computers){
             let item = {key:comp,data:computers[comp]};
@@ -949,7 +1017,7 @@ function App() {
                         <Container maxWidth="lg">
                             <Grid container>
                                 <Grid item xs={12}>
-                                    <h3>Quanah <Typography variant="subtitle1" style={{display:'inline-block'}}>from {scheme.timerange[0].toLocaleString()} to {scheme.timerange[1].toLocaleString()}</Typography></h3>
+                                    <h3>Nocona <Typography variant="subtitle1" style={{display:'inline-block'}}>from {scheme.timerange[0].toLocaleString()} to {scheme.timerange[1].toLocaleString()}</Typography></h3>
                                 </Grid>
                                 <Grid item xs={6} container spacing={1}>
                                     <Grid item xs={12}>
