@@ -580,7 +580,7 @@ function App() {
             d.angle = (i/dimensions.length)*2*Math.PI;
         });
         function getdata(d){
-            return (d3.sum(Object.values(d))/coreLimit) *100;
+            return (Math.min(1,d3.sum(Object.values(d))/coreLimit)) *100;
         }
         Object.keys(computers).forEach((comp)=> {
             computers[comp][k]=[];
