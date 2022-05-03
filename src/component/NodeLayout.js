@@ -103,8 +103,8 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
                 tempObject.scale.z = THREE.MathUtils.lerp(tempVec.z, scalesize[2], 0.1);
                 // tempObject.scale.set(1,1,100)
 
-                colorArray[i * 4 + 3] = (hoverEmpty || (i === hovered)) ? 1 : 0.01;
-                meshRef.current.geometry.attributes.color.needsUpdate = true;
+                colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0.01;
+                // meshRef.current.geometry.attributes.color.needsUpdate = true;
                 tempObject.updateMatrix();
                 meshRef.current.setMatrixAt(i, tempObject.matrix);
             });
@@ -116,14 +116,16 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
     },[timeGap])
     return <><instancedMesh ref={meshRef} args={[null, null, data.length]}
                             onClick={(e)=>{setfreeze(!freeze); if(freeze) set(undefined)}}
-                            onPointerMove={(e) => {e.stopPropagation(); if(!freeze){ set(e.instanceId);
+                            onPointerMove={(e) => {e.stopPropagation(); if(!freeze){
+                                set(e.instanceId);
+                                console.log()
                             const h = {};
                             h[data[e.instanceId].data.user]=true;
                                 onUserhighlight(h)
                             }}}
                             onPointerOut={(e) => {e.stopPropagation(); if(!freeze) {set(undefined); onReleaseUserhighlight()}}}>
         <boxGeometry args={size}>
-            <instancedBufferAttribute attachObject={['attributes', 'color']} args={[colorArray, 4]} />
+            <instancedBufferAttribute attach={'attributes-color'} args={[colorArray, 4]} />
         </boxGeometry>
         <meshStandardMaterial vertexColors toneMapped={false} transparent={true} alphaTest={0} />
     </instancedMesh>
