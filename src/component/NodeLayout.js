@@ -115,10 +115,13 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
         return [d[0], d[1], d[2]*timeGap]
     },[timeGap])
     return <><instancedMesh ref={meshRef} args={[null, null, data.length]}
-                            onClick={(e)=>{setfreeze(!freeze); if(freeze) set(undefined)}}
-                            onPointerMove={(e) => {e.stopPropagation(); if(!freeze){
+                            onClick={(e)=>{
+                                console.log(e)
+                                setfreeze(!freeze); if(freeze) set(undefined)}}
+                            onPointerMove={(e) => {e.stopPropagation();
+                            console.log('I am here')
+                            if(!freeze){
                                 set(e.instanceId);
-                                console.log()
                             const h = {};
                             h[data[e.instanceId].data.user]=true;
                                 onUserhighlight(h)

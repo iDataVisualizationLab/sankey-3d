@@ -6,7 +6,7 @@ import {
     Center,
     OrthographicCamera,
     BakeShadows,
-    Html, View, ArcballControls
+    Html, View, Environment
 } from "@react-three/drei";
 import React, {Suspense, useCallback, useEffect, useRef, useState} from "react";
 import NodeLayout from "./NodeLayout";
@@ -24,18 +24,24 @@ import * as d3 from "d3";
 import * as _ from "lodash";
 import ValueAxis from "./ValueAxis";
 import Grid from "@mui/material/Grid/Grid";
+import {PCAchart} from "./PCAchart";
+import {viz} from "./leva/Viz";
+
 
 const SEQUNCE = [{x: -90, y: -50, z: 200, zoom: 30}];//[{x:-40,y:10,z:100,zoom:30}];//[{x:-20,y:20,z:100,zoom:30}];
 
 const width = 1200;
 const height = 700;
-const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, config, selectedTime, selectedComputeMap, selectedUser, dimensions, selectedSer, scheme, colorByName, colorCluster, colorBy, getMetric, metrics, theme, line3D, layout, users, selectService, stackOption = false, getKey}) {
+const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, config, selectedTime, selectedComputeMap, setSelectedComputeMap, selectedUser, dimensions, selectedSer,selectedSer2, scheme, colorByName, colorCluster, colorBy, getMetric, metrics, theme, line3D, layout, users, selectService, stackOption = false, getKey}) {
     const [currentSequnce, setCurrentSequnce] = useState(0);
+    const pcaRef = useRef();
+
+
     const config3D = useControls("3D", {
         timeGap: {value: 5, min: 1, max: 10, step: 0.1, label: 'Bar height'},
         light: {value: 0.5, min: 0, max: 1, step: 0.01},
         resetView: button((get) => {
-            debugger
+
             cameraRef.current.pointOfView({x: -90, y: -50, z: 200, zoom: 30}, 4000);
         }),
         cameraAnimate: {value: false}
@@ -50,7 +56,15 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     const [_userHighlight, set_UserHighlight] = useState(undefined);
     const [userHighlight, setUserHighlight] = useState(undefined);
     if (sankeyhtml.current)
-        sankeyhtml.current.parentElement.style.pointerEvents = 'none'
+        sankeyhtml.current.parentElement.style.pointerEvents = 'none';
+
+    const pcaSelect = useControls("PCA",{PCAchart:viz({value:0,
+            label:'',
+            com:<div><PCAchart ref={pcaRef} setSelectedComputeMap={setSelectedComputeMap}/></div>}),
+        Apply:button((get)=>{
+            console.log('clicked apply')
+            pcaRef.current.calculatePCA(_draw3DData)
+        })},[_draw3DData])
     useEffect(() => {
         if (config3D.cameraAnimate)
             if (cameraRef.current) {
@@ -122,7 +136,6 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                     comp[e] = true;
                     // Object.keys(compS).forEach(c => comp[c] = d.sources[e].data.node_list_obj[c]);
                     const _Data = {...d.source, comp};
-
                     const colorS = getColorScale(l.draw[0] ?? {})//getColorScale(_Data);
                     // const thick = _thick / 2;
 
@@ -178,6 +191,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     }
 
     useEffect(() => {
+
         getSelectedDraw3Data({selectedUser, selectedComputeMap}, _draw3DData, scheme, config.stackOption)
     }, [_draw3DData, selectedComputeMap, selectedUser, scheme, config.suddenThreshold, config.metricTrigger, config.metricFilter, config.stackOption])
 
@@ -205,7 +219,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 if (isEmpty)
                     sudenCompMap[comp] = {};
                 arr.forEach((d, ti) => {
-                    if (d >= config.metricFilter[0]) {
+                    if (d >= config.metricFilter) {
                         sudenCompMap[comp][ti] = true;
                     }
                 });
@@ -240,6 +254,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
             else
                 flatmap = suddenMap;
         }
+
         if (selectedUser) {
             let selectedUsereMap = {}
             _scheme.users[selectedUser].node.forEach(com => {
@@ -295,12 +310,12 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     }
 
     const adjustscale = useCallback(() => {
-        if (config.metricTrigger && dimensions[selectedSer]) {
-            if (config.metricFilter[1] === config.metricFilter[0])
-                return (d) => 0.5;
-            else
-                return (d) => (d - dimensions[selectedSer].scale(config.metricFilter[0])) / dimensions[selectedSer].scale(config.metricFilter[1] - config.metricFilter[0])
-        }
+        // if (config.metricTrigger && dimensions[selectedSer]) {
+        //     if (config.metricFilter[1] === config.metricFilter[0])
+        //         return (d) => 0.5;
+        //     else
+        //         return (d) => (d - dimensions[selectedSer].scale(config.metricFilter[0])) / dimensions[selectedSer].scale(config.metricFilter[1] - config.metricFilter[0])
+        // }
         return (d) => d;
     }, [config.metricTrigger, config.metricFilter, dimensions, selectedSer])
     return <div ref={ref} className={"containerThree"}>
@@ -310,7 +325,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         <Canvas onCreated={(state) => state.events.connect(ref.current)}
                 className="canvas"
         >
-            <View index={1} track={view1}>
+            <View index={1} track={view1} fames={1}>
                 {/*<ambientLight intensity={config.light}/>*/}
                 {/*<pointLight position={[150, 150, 150]} intensity={0.55} />*/}
                 {/*<fog attach="fog" args={["red", 5, 35]} />*/}
@@ -339,7 +354,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                                     onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
                         />
                         <ValueAxis
-                            range={(config.metricTrigger && dimensions[selectedSer]) ? config.metricFilter : (dimensions[selectedSer] ? dimensions[selectedSer].range : [])}
+                            range={(dimensions[selectedSer] ? dimensions[selectedSer].range : [])}
                             timeGap={config3D.timeGap}/>
                     </group>
                     {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
@@ -376,11 +391,11 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 {/*</GizmoHelper>*/}
                 {/*<BakeShadows />*/}
                 {/*</Suspense>*/}
-
-                <CustomCamera ref={cameraRef}/>
+                <Environment preset={"dawn"}/>
+                <CustomCamera makeDefault ref={cameraRef}/>
             </View>
 
-            <View index={2} track={view2}>
+            <View index={2} track={view2} fames={1}>
                 <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
                 <directionalLight
                     castShadow
@@ -399,13 +414,13 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                     {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
                     <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
                         <NodeLayout data={draw3DData} timeGap={config3D.timeGap} getKey={getKey}
-                                    selectService={selectedSer}
-                                    adjustscale={adjustscale()}
+                                    selectService={selectedSer2}
+                                    adjustscale={d=>d}
                                     onUserhighlight={(d) => setUserHighlight(d)}
                                     onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
                         />
                         <ValueAxis
-                            range={(config.metricTrigger && dimensions[selectedSer]) ? config.metricFilter : (dimensions[selectedSer] ? dimensions[selectedSer].range : [])}
+                            range={(dimensions[selectedSer2] ? dimensions[selectedSer2].range : [])}
                             timeGap={config3D.timeGap}/>
                     </group>
                     {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
@@ -418,8 +433,8 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 {/*</GizmoHelper>*/}
                 {/*<BakeShadows />*/}
                 {/*</Suspense>*/}
-
-                <CustomCamera ref={cameraRef}/>
+                <Environment preset={"dawn"}/>
+                <CustomCamera makeDefault  ref={cameraRef}/>
             </View>
         </Canvas>
     </div>

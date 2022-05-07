@@ -6,7 +6,7 @@ import reportWebVitals from './reportWebVitals';
 
 const rootElement = document.getElementById("root");
 const root = ReactDOM.createRoot(rootElement)
-root.render(<Suspense fallback={null}><App /></Suspense>);
+root.render(<App />);
 
 // ReactDOM.render(
 //     <React.StrictMode>

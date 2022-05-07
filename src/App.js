@@ -1,7 +1,7 @@
 // import logo from './logo.svg';
 import './App.css';
 import Layout3D from "./component/Layout3D"
-import React, {useState, useEffect, useCallback, useMemo, useLayoutEffect} from "react";
+import React, {useState, useEffect, useCallback, useMemo, useLayoutEffect, useRef} from "react";
 import {Grid, Backdrop, CircularProgress, createTheme,FormControl,InputLabel,Select,MenuItem,Typography} from "@mui/material";
 import CssBaseline from '@mui/material/CssBaseline';
 import {ThemeProvider} from '@mui/material/styles';
@@ -27,6 +27,7 @@ import Alert from "@mui/material/Alert";
 import {viz} from "./component/leva/Viz";
 import {Radar} from "./component/radar";
 import Sankey from "./component/Sankey";
+import {PCAchart} from "./component/PCAchart";
 
 const ColorModeContext = React.createContext({
     toggleColorMode: () => {
@@ -55,6 +56,7 @@ function App() {
     // const [selectedUser, setSelectedUser] = React.useState(null);
     const [selectedComputeMap, setSelectedComputeMap] = React.useState(undefined);
     const [clusterInfo, setClusterInfo] = React.useState({cluster:[],outlyingBins:[],clusterDescription:[],colorCluster:d3.scaleOrdinal(),clusterInfo:{}});
+
     // const [selectedSer, setSelectedSer] = React.useState(0);
 
     const [dataset,setDataset] = useControls("Dataset",()=>({
@@ -106,7 +108,7 @@ function App() {
                         const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
                         setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()});
                         console.log('Init data')
-                        recalCluster(scheme, dimensions);
+                        // recalCluster(scheme, dimensions);
 
                     }, 1);
                 }
@@ -116,17 +118,18 @@ function App() {
     }))
     const optionsColor = useMemo(()=>{
         const option = dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {});
-        option["Dataset cluster"] = "cluster"
+        // option["Dataset cluster"] = "cluster"
         return option;
     },[dimensions])
-    const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"User":{value:undefined,options:Object.keys(scheme.users)}}),[scheme.users]);
-    const [{selectedSer},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"Color by",value:0,
+    const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"selectedUser":{label:'User',value:undefined,options:Object.keys(scheme.users)}}),[scheme.users]);
+    const [{selectedSer,selectedSer2},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"Bar chart by",value:0,
             onChange:(val)=>{
                 updateColor(_draw3DData,scheme,val);
                 set_draw3DData([..._draw3DData]);
                 draw3DData.forEach(d=>d.possArr=[...d.possArr]);
                 setDraw3DData([...draw3DData]);
-            },transient:false}
+            },transient:false},
+        selectedSer2:{options:dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {}),label:"Bar chart 2 by",value:0}
     }),[dimensions,_draw3DData,draw3DData,scheme]);
     // useControls("Setting",()=>{
     //     console.log(dimensions,selectedSer,dimensions[selectedSer])
@@ -188,7 +191,7 @@ function App() {
                 // value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
 
             metricTrigger:{value:false, label:'Filter'}
-        ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:[range[0],range[1]],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
+        ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:range[0],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
         ,stackOption:{render:(get)=>get("Setting.metricTrigger"),value:false,label:"Stack"}
         ,suddenThreshold:{value:0,min:0,max:(dimensions[selectedSer]??{max:1}).max,step:0.1, label:"Sudden Change"}}
         }else{
@@ -458,7 +461,7 @@ function App() {
                 return item
             })
         });
-        debugger
+
         const result = handleDataComputeByUser(computers,jobs,_data.time_stamp);
         const jobCompTimeline = result.data;
         const noJobMap = result.noJobMap;
@@ -991,6 +994,7 @@ function App() {
                                   users={drawUserData}
                                   line3D={line3D}
                                   selectedSer={selectedSer}
+                                  selectedSer2={selectedSer2}
                                   stackOption={config.stackOption}
                                   getKey={(d)=>d.data.key+' '+d.data.timestep}
 
@@ -1010,6 +1014,7 @@ function App() {
                             // sankeyComputeSelected = {sankeyComputeSelected}
                                   config={config}
                                   selectedComputeMap={selectedComputeMap}
+                                  setSelectedComputeMap={(d)=>setSelectedComputeMap(d)}
                                   selectedUser={selectedUser}
                                   scheme={scheme}
                         />

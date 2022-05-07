@@ -201,7 +201,7 @@ export default class Sankey extends React.Component {
             console.time('create links');
             const maxLimit = this.props.maxPerUnit;
             const mapOfSankey = {};
-            debugger
+
             // nodes = _.shuffle(nodes)
             for (let i = 1; i < keys.length; ++i) {
                 const a = '' + keys[i - 1];
@@ -389,7 +389,7 @@ export default class Sankey extends React.Component {
 
         this.setState({isForceDone: false});
         const forceNode = nodes.filter(d=>d.shared);
-        debugger
+
         console.time('Force time');
 
         let iterations=0;
@@ -704,7 +704,7 @@ export default class Sankey extends React.Component {
         const d = target.values[d3.bisect(target.values.map(e => e.source.time), this.x.invert(x))];
         const list = {};
         if (d && (!this.state.highlight || (this.state.highlight && (d !== this.state.highlight.el)))) {
-            debugger
+
             const highlight = {list, el: d, event};
             if (d.source.element.length > 1) {
                 highlight.list[d.source.name] = true;
@@ -884,11 +884,11 @@ export default class Sankey extends React.Component {
                                                                         className={'outer_node element' + (((highlight && highlight.list[d.name])||(userHighlight && userHighlight[d.name])) ? ' highlight' : '')}
                                                                         transform={`translate(${d.x0},${d.y0})`}>
                                     {/*<title></title>*/}
-                                    <text x={-6} y={(d.y1 + d.y0) / 2 - d.y0} dy={"0.35em"} textAnchor={'end'}
+                                        {(!d.isShareUser)&&<text x={-6} y={(d.y1 + d.y0) / 2 - d.y0} dy={"0.35em"} textAnchor={'end'}
                                           paintOrder={'stroke'}
                                           stroke={'black'} strokeWidth={1}
                                           fill={d.first ? this._getColorScale_byName(d) : 'white'}
-                                          fontWeight={d.isShareUser ? undefined : 'bold'}>{d.first ? d.name : ''}</text>
+                                          fontWeight={d.isShareUser ? undefined : 'bold'}>{d.first ? d.name : ''}</text>}
                                 </g>)}
                             </g>
                             <g className={'links'}>

@@ -2,7 +2,7 @@
 import React from "react";
 import { css, cx} from '@emotion/css'
 
-export class NodeElement extends React.Component<Props, State>{
+export class NodeElement extends React.Component{
     onHandleClick(){
         const _freezing = this.props.freezing;
         const freezing = !_freezing;
@@ -26,7 +26,7 @@ export class NodeElement extends React.Component<Props, State>{
         }
     }
     render(){
-        const {children,className,...other} = this.props;
+        const {children,className,mouseMove,mouseLeave,setfreezing,...other} = this.props;
         const freezing = this.props.freezing;
         return <g {...other} onClick={()=>this.onHandleClick()}
                   className={cx(className,freezing?css`
