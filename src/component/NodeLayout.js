@@ -124,6 +124,7 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
                             onClick={(e)=>{
                                 setfreeze(!freeze); if(freeze) set(undefined)}}
                             onPointerMove={(e) => {e.stopPropagation();
+                            console.log(data[e.instanceId])
                             if(!freeze){
                                 set(e.instanceId);
                             const h = {};

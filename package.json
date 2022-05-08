@@ -10,7 +10,7 @@
     "@mui/material": "^5.4.4",
     "@mui/styled-engine-sc": "^5.4.2",
     "@mui/styles": "^5.4.4",
-    "@react-three/drei": "^9.6.2",
+    "@react-three/drei": "^9.7.1",
     "@react-three/fiber": "^8.0.12",
     "@react-three/postprocessing": "^2.2.4",
     "@tensorflow/tfjs": "^3.16.0",

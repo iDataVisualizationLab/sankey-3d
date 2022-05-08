@@ -324,7 +324,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         <div className="canvas">
         <Canvas onCreated={(state) => state.events.connect(ref.current)}
         >
-            <View index={1} track={view1} fames={1}>
+            <View index={1} track={view1}>
                 {/*<ambientLight intensity={config.light}/>*/}
                 {/*<pointLight position={[150, 150, 150]} intensity={0.55} />*/}
                 {/*<fog attach="fog" args={["red", 5, 35]} />*/}
@@ -345,6 +345,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
 
                     {/*<LayoutMap data={layout}/>*/}
                     {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
+                    <group position={[0, (height / 100/2), 0]}>
                     <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
                         <NodeLayout data={draw3DData}
                                     timeGap={config3D.timeGap}
@@ -387,6 +388,12 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                         userHighlight={userHighlight}
                     />
                     </Html>
+                    </group>
+                <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
+                <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
+                    <planeGeometry />
+                    <shadowMaterial transparent opacity={0.3} />
+                </mesh>
                 {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
                     {/*<GizmoViewcube/>*/}
                 {/*</GizmoHelper>*/}
@@ -396,7 +403,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 <CustomCamera makeDefault ref={cameraRef}/>
             </View>
 
-            <View index={2} track={view2} fames={1}>
+            <View index={2} track={view2}>
                 <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
                 <directionalLight
                     castShadow
@@ -410,11 +417,13 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 />
                 <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
                 {/*<Suspense fallback={null}>*/}
-                <group>
+                <group position={[0, (height / 100/2), 0]}>
                     {/*<LayoutMap data={layout}/>*/}
 
                     <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
-                        <NodeLayout data={draw3DData} timeGap={config3D.timeGap} getKey={getKey}
+                        <NodeLayout data={draw3DData}
+                                    timeGap={config3D.timeGap}
+                                    getKey={getKey}
                                     selectService={selectedSer2}
                                     adjustscale={d=>d}
                                     onUserhighlight={(d) => setUserHighlight(d)}
@@ -429,6 +438,11 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                     {/*<UserLayout data={users}/>*/}
 
                 </group>
+                <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
+                <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
+                    <planeGeometry />
+                    <shadowMaterial transparent opacity={0.3} />
+                </mesh>
                 {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
                 {/*<GizmoViewcube/>*/}
                 {/*</GizmoHelper>*/}
