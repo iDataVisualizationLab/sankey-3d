@@ -2,34 +2,44 @@ import React, {useImperativeHandle, useRef, useState, useEffect, useCallback} fr
 import * as d3 from 'd3'
 import {PCA} from './PCA'
 import Lasso from "./Lasso";
-
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import GestureIcon from '@mui/icons-material/Gesture';
+import Tooltip from "@mui/material/Tooltip/Tooltip";
+import './pcachart.css'
 const xscale = d3.scaleLinear();
 const yscale = d3.scaleLinear();
-export const PCAchart = React.forwardRef(({DIM=2,setSelectedComputeMap,...props},ref)=> {
+export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMap,...props},ref)=> {
     const canvasRef = useRef();
+    const zoomRef = useRef({x:0,y:0,k:1});
+    const lassoRef = useRef();
     const width=500;
     const height=500;
     const r = 2;
     const [data,setData] = useState([]);
+    const [isPan,setPan] = useState('select');
     useEffect(()=>{
-        console.log(data)
         d3.select(canvasRef.current).call(d3.zoom()
             .scaleExtent([1, 8])
-            .on("zoom", ({transform}) => zoomed(transform,data)));
-        zoomed(d3.zoomIdentity,data);
+            .on("zoom", ({transform}) =>{
+                zoomRef.current = transform;
+                zoomed(data);
+            }));
+        zoomRef.current = d3.zoomIdentity;
+        zoomed(data);
 
     },[data]);
     const handleLassoEnd = useCallback((lassoPolygon)=> {
-        debugger
         if (lassoPolygon) {
             const comps = {};
             data.forEach((d) => {
                 const [x, y] = d;
+                const transform = zoomRef.current;
                 if (!d3.polygonContains(lassoPolygon, [xscale(x), yscale(y)])) {
                     d._color = 'black'
                 } else {
                     delete d._color;
-                    console.log(d.data);
                     if(!comps[d.data.key])
                         comps[d.data.key] = [];
                     comps[d.data.key].push(d.data.timestep)
@@ -42,14 +52,14 @@ export const PCAchart = React.forwardRef(({DIM=2,setSelectedComputeMap,...props}
             });
             setSelectedComputeMap(undefined)
         }
-        zoomed(d3.zoomIdentity,data);
+        zoomed(data);
         setData(data);
     },[data]);
     const handleLassoStart = useCallback((lassoPolygon)=> {
         data.forEach((d) => {
             delete d._color;
         });
-        zoomed(d3.zoomIdentity,data);
+        zoomed(data);
         setData(data);
     },[data]);
     useImperativeHandle(ref, () => ({
@@ -65,12 +75,13 @@ export const PCAchart = React.forwardRef(({DIM=2,setSelectedComputeMap,...props}
             let pca = new PCA();
             // console.log(brand_names);
             // let matrix = pca.scale(dataIn, true, true);
-            let matrix = pca.scale(dataIn, false, false);
+
+            let matrix = pca.scale(dataIn, true, false);
 
             let pc = pca.pca(matrix,DIM);
 
             let A = pc[0];  // this is the U matrix from SVD
-            // let B = pc[1];  // this is the dV matrix from SVD
+            let B = pc[1];  // this is the dV matrix from SVD
             let chosenPC = pc[2];   // this is the most value of PCA
             let solution = dataIn.map((d,i)=>{
                 const dd = d3.range(0,DIM).map(dim=>A[i][chosenPC[dim]]);
@@ -92,15 +103,35 @@ export const PCAchart = React.forwardRef(({DIM=2,setSelectedComputeMap,...props}
                 let delta = ((xrange[1] - xrange[0]) * ratio - (yrange[1] - yrange[0])) / 2;
                 yscale.domain([yrange[0] - delta, yrange[1] + delta])
             }
-            console.log('I set new solution')
+
+            const feature = dimensions.map(function (key, i) {
+                let brand = [[xscale(0),yscale(0)],d3.range(0,DIM).map(dim=>B[i][chosenPC[dim]])];
+                brand.name = key.text;
+                return brand
+            });
+            let multiplyBrands = Math.sqrt(d3.max([
+                distance([xscale(0),yscale(0),xscale.range()[0],yscale.range()[0]]),
+                distance([xscale(0),yscale(0),xscale.range()[0],yscale.range()[1]]),
+                distance([xscale(0),yscale(0),xscale.range()[1],yscale.range()[0]]),
+                distance([xscale(0),yscale(0),xscale.range()[1],yscale.range()[1]]),
+            ])/d3.max(feature,d=>distance([xscale(0),yscale(0),xscale(d[1][0]),yscale(d[1][1])])));
+            feature.forEach(f=>{
+                f[1][0] = xscale(f[1][0]*multiplyBrands);
+                f[1][1] = yscale(f[1][1]*multiplyBrands);
+            });
+            solution.axis = {feature}
+
             setData(solution);
         }
-    }),[]);
+    }),[dimensions]);
     // useEffect(()=>{
     //     zoomed(d3.zoomIdentity);
     // },[data])
 
-    function zoomed(transform,data) {
+    function zoomed(data) {
+        const transform =  zoomRef.current;
+        if (lassoRef.current)
+            lassoRef.current.zoom(transform)
         const context = canvasRef.current.getContext('2d')
         context.save();
         context.clearRect(0, 0, width, height);
@@ -114,12 +145,84 @@ export const PCAchart = React.forwardRef(({DIM=2,setSelectedComputeMap,...props}
             context.arc(xscale(x), yscale(y), r, 0, 2 * Math.PI);
             context.fill();
         }
+        // if (data.axis){
+        //     data.axis.feature.forEach(d=>{
+        //         // console.log([xscale(0),yscale(0),xscale(d[0]*data.axis.multiplyBrands),yscale(d[1]*data.axis.multiplyBrands)])
+        //         drawArrow(context,xscale(0),yscale(0),xscale(d[0]*data.axis.multiplyBrands),yscale(d[1]*data.axis.multiplyBrands),2,'red')
+        //     })
+        // }
         context.restore();
+        function drawArrow(ctx, fromx, fromy, tox, toy, arrowWidth, color){
+            //variables to be used when creating the arrow
+            var headlen = 10;
+            var angle = Math.atan2(toy-fromy,tox-fromx);
+
+            ctx.strokeStyle = color;
+
+            //starting path of the arrow from the start square to the end square
+            //and drawing the stroke
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.lineWidth = arrowWidth;
+            ctx.stroke();
+
+            //starting a new path from the head of the arrow to one of the sides of
+            //the point
+            ctx.beginPath();
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox-headlen*Math.cos(angle-Math.PI/7),
+                toy-headlen*Math.sin(angle-Math.PI/7));
+
+            //path from the side point of the arrow, to the other side point
+            ctx.lineTo(tox-headlen*Math.cos(angle+Math.PI/7),
+                toy-headlen*Math.sin(angle+Math.PI/7));
+
+            //path from the side point back to the tip of the arrow, and then
+            //again to the opposite side point
+            ctx.lineTo(tox, toy);
+            ctx.lineTo(tox-headlen*Math.cos(angle-Math.PI/7),
+                toy-headlen*Math.sin(angle-Math.PI/7));
+
+            //draws the paths created above
+            ctx.stroke();
+        }
     }
 
 
     return <div style={{position: 'relative',width:'100%'}}>
         <canvas ref={canvasRef} width={width} height={height} style={{width:'100%'}}/>
-        <Lasso start={(d)=>handleLassoStart(d)} width={width} height={height} end={d=>handleLassoEnd(d)}/>
+        <Lasso ref={lassoRef} start={(d)=>handleLassoStart(d)} width={width} height={height}
+               axis={data.axis}
+               end={d=>handleLassoEnd(d)} disable={isPan==='pan'}/>
+        <div className={"floatMenu"} style={{position:'absolute',bottom:0,left:0}}>
+            <ToggleButtonGroup
+                value={isPan}
+                exclusive
+                onChange={(e,v)=>setPan(v)}
+                aria-label="text alignment"
+                color="primary"
+            >
+
+                    <ToggleButton value="pan" aria-label="left aligned" >
+                        <Tooltip title="Pan" placement="top">
+                    <PanToolIcon />
+                        </Tooltip>
+                </ToggleButton>
+
+
+                <ToggleButton value="select" aria-label="centered" >
+                    <Tooltip title="Select" placement="top">
+                    <GestureIcon />
+                    </Tooltip>
+                </ToggleButton>
+
+            </ToggleButtonGroup>
+        </div>
     </div>
-})
+});
+
+
+function distance(d){
+    return Math.sqrt((d[2]-d[0])*(d[2]-d[0])+(d[3]-d[1])*(d[3]-d[1]));
+}

@@ -47,7 +47,7 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
             // });
         }
         return {first:true,tracker};
-    },[data,getKey])
+    },[data,getKey,timeGap])
 
     // useEffect(()=>{
     //     if (globeEl.current) {
@@ -63,7 +63,7 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
     //     }
     // },[currentSequnce]);
 
-    useFrame((state) => {
+    useFrame((state,delta) => {
         const hoverEmpty = hovered===undefined;
         const notMetric = typeof selectService === 'string';
         if (trackerData.first){
@@ -81,45 +81,49 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
             });
             meshRef.current.instanceMatrix.needsUpdate = true;
             trackerData.first = false;
+            trackerData.time = 0;
         }else {
-            data.forEach((d, i) => {
-                meshRef.current.getMatrixAt(i, tempMatrix);
-                tempVec.setFromMatrixPosition(tempMatrix);
+            if (trackerData.time<1) {
+                trackerData.time = Math.min(1, trackerData.time + delta);
+                data.forEach((d, i) => {
+                    meshRef.current.getMatrixAt(i, tempMatrix);
+                    tempVec.setFromMatrixPosition(tempMatrix);
 
-                const scalesize = [1, 1, 1];
-                if (d.size) {
-                    scalesize[0] = d.size[0] / size[0];
-                    scalesize[1] = d.size[1] / size[1];
-                    scalesize[2] = (notMetric ? 0.5 : adjustscale(d.data.values[selectService] ?? 0)) * timeGap / size[2];
-                }
-                tempObject.position.x = THREE.MathUtils.lerp(tempVec.x, d[0], 0.1);
-                tempObject.position.y = THREE.MathUtils.lerp(tempVec.y, d[1], 0.1);
-                tempObject.position.z = THREE.MathUtils.lerp(tempVec.z, d[2] + scalesize[2] * size[2] / 2, 0.1);
-                // tempObject.position.set(Math.random(),Math.random(),0)
+                    const scalesize = [1, 1, 1];
+                    if (d.size) {
+                        scalesize[0] = d.size[0] / size[0];
+                        scalesize[1] = d.size[1] / size[1];
+                        scalesize[2] = (notMetric ? 0.5 : adjustscale(d.data.values[selectService] ?? 0)) * timeGap / size[2];
+                    }
+                    d._pos = [d[0],d[1],d[2] + scalesize[2] * size[2] / 2]
+                    tempObject.position.x = THREE.MathUtils.lerp(tempVec.x, d[0], trackerData.time);
+                    tempObject.position.y = THREE.MathUtils.lerp(tempVec.y, d[1], trackerData.time);
+                    tempObject.position.z = THREE.MathUtils.lerp(tempVec.z, d[2] + scalesize[2] * size[2] / 2, 0.1);
+                    // tempObject.position.set(Math.random(),Math.random(),0)
 
-                tempVec.setFromMatrixScale(tempMatrix)
-                tempObject.scale.x = THREE.MathUtils.lerp(tempVec.x, scalesize[0], 0.1);
-                tempObject.scale.y = THREE.MathUtils.lerp(tempVec.y, scalesize[1], 0.1);
-                tempObject.scale.z = THREE.MathUtils.lerp(tempVec.z, scalesize[2], 0.1);
-                // tempObject.scale.set(1,1,100)
+                    tempVec.setFromMatrixScale(tempMatrix)
+                    tempObject.scale.x = THREE.MathUtils.lerp(tempVec.x, scalesize[0], trackerData.time);
+                    tempObject.scale.y = THREE.MathUtils.lerp(tempVec.y, scalesize[1], trackerData.time);
+                    tempObject.scale.z = THREE.MathUtils.lerp(tempVec.z, scalesize[2] || 0.0001, trackerData.time);
 
-                colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0.01;
-                // meshRef.current.geometry.attributes.color.needsUpdate = true;
-                tempObject.updateMatrix();
-                meshRef.current.setMatrixAt(i, tempObject.matrix);
-            });
-            meshRef.current.instanceMatrix.needsUpdate = true;
+                    // tempObject.scale.set(1,1,100)
+
+                    colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0.01;
+                    // meshRef.current.geometry.attributes.color.needsUpdate = true;
+                    tempObject.updateMatrix();
+                    meshRef.current.setMatrixAt(i, tempObject.matrix);
+                });
+                meshRef.current.instanceMatrix.needsUpdate = true;
+            }
         }
     });
     const getDataPos = useCallback((d)=>{
-        return [d[0], d[1], d[2]*timeGap]
+        return d._pos??null
     },[timeGap])
     return <><instancedMesh ref={meshRef} args={[null, null, data.length]}
                             onClick={(e)=>{
-                                console.log(e)
                                 setfreeze(!freeze); if(freeze) set(undefined)}}
                             onPointerMove={(e) => {e.stopPropagation();
-                            console.log('I am here')
                             if(!freeze){
                                 set(e.instanceId);
                             const h = {};

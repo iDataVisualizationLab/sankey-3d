@@ -120,14 +120,23 @@ function App() {
         const option = dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {});
         // option["Dataset cluster"] = "cluster"
         return option;
-    },[dimensions])
-    const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"selectedUser":{label:'User',value:undefined,options:Object.keys(scheme.users)}}),[scheme.users]);
+    },[dimensions]);
+    const optionsUser = useMemo(()=>{
+        const option = {'':undefined};
+        Object.keys(scheme.users).forEach(d=>option[d]=d);
+        // option["Dataset cluster"] = "cluster"
+        return option;
+    },[scheme.users]);
+    const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"selectedUser":{label:'User',value:undefined,options:optionsUser}}),[optionsUser]);
     const [{selectedSer,selectedSer2},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"Bar chart by",value:0,
             onChange:(val)=>{
                 updateColor(_draw3DData,scheme,val);
                 set_draw3DData([..._draw3DData]);
                 draw3DData.forEach(d=>d.possArr=[...d.possArr]);
                 setDraw3DData([...draw3DData]);
+                // debugger
+                // if (dimensions[val])
+                //     setConfig({metricFilter: dimensions[val].range[0]})
             },transient:false},
         selectedSer2:{options:dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {}),label:"Bar chart 2 by",value:0}
     }),[dimensions,_draw3DData,draw3DData,scheme]);
@@ -139,68 +148,118 @@ function App() {
     //         return {}
     // },[dimensions,selectedSer])
     const [{metricRangeMinMax},setMetricRangeMinMax] = useControls("Setting",()=>(
-        {metricRangeMinMax:{value:false, label:'Min-Max scale'}}));
-    useEffect(()=>{
-        if (metricRangeMinMax){
-            dimensions.forEach(dim=>{
-                dim.range = [dim.min,dim.max];
-                dim.scale.domain(dim.range)
-            })
-        }else{
-            dimensions.forEach(dim=>{
-                dim.range = dim.possibleUnit.range.slice();
-                dim.scale.domain(dim.range)
-            })
-        }
-
-        // setDimensions(dimensions);
-        if (scheme.computers) {
-            Object.keys(scheme.computers).forEach(d => {
-                scheme.time_stamp.forEach((t, ti) => {
-                    dimensions.forEach((dim, ki) => {
-                        scheme.tsnedata[d][ti][ki] = dimensions[ki].scale(scheme.computers[d][dim.text][ti] ?? undefined) ?? null;
-                    })
-                })
-            });
-            // setScheme({...scheme});
-            if (selectedSer==='cluster'){
-                console.log('selectedSer changed')
-                recalCluster(scheme, dimensions,({clusterInfo,scheme})=>{
-                    if (selectedSer==='cluster') {
-                        setScheme(scheme);
-                        updateColor(_draw3DData, scheme,undefined,clusterInfo);
-                        set_draw3DData([..._draw3DData]);
-                        draw3DData.forEach(d=>d.possArr=[...d.possArr]);
-                        setDraw3DData([...draw3DData]);
+        {metricRangeMinMax:{value:false, label:'Min-Max scale', onChange:(metricRangeMinMax)=>{
+            debugger
+                    if (metricRangeMinMax){
+                        dimensions.forEach(dim=>{
+                            dim.range = [dim.min,dim.max];
+                            dim.scale.domain(dim.range)
+                        })
+                    }else{
+                        dimensions.forEach(dim=>{
+                            dim.range = dim.possibleUnit.range.slice();
+                            dim.scale.domain(dim.range)
+                        })
                     }
-                })
-            }else{
-                updateColor(_draw3DData, scheme);
-                set_draw3DData([..._draw3DData]);
-                draw3DData.forEach(d => d.possArr = [...d.possArr]);
-                setDraw3DData([...draw3DData]);
-            }
-        }
-    },[metricRangeMinMax]);
+
+                    // setDimensions(dimensions);
+                    if (scheme.computers) {
+                        Object.keys(scheme.computers).forEach(d => {
+                            scheme.time_stamp.forEach((t, ti) => {
+                                dimensions.forEach((dim, ki) => {
+                                    scheme.tsnedata[d][ti][ki] = dimensions[ki].scale(scheme.computers[d][dim.text][ti] ?? undefined) ?? null;
+                                })
+                            })
+                        });
+                        // setScheme({...scheme});
+                        if (selectedSer==='cluster'){
+                            console.log('selectedSer changed')
+                            recalCluster(scheme, dimensions,({clusterInfo,scheme})=>{
+                                if (selectedSer==='cluster') {
+                                    setScheme(scheme);
+                                    updateColor(_draw3DData, scheme,undefined,clusterInfo);
+                                    set_draw3DData([..._draw3DData]);
+                                    draw3DData.forEach(d=>d.possArr=[...d.possArr]);
+                                    setDraw3DData([...draw3DData]);
+                                }
+                            })
+                        }else{
+                            updateColor(_draw3DData, scheme);
+                            set_draw3DData([..._draw3DData]);
+                            draw3DData.forEach(d => d.possArr = [...d.possArr]);
+                            setDraw3DData([...draw3DData]);
+                        }
+                    }
+                    setDimensions(dimensions)
+        },transient:false
+        }}),[dimensions,scheme.computers]);
+    // useEffect(()=>{
+    //     debugger
+    //     if (metricRangeMinMax){
+    //         dimensions.forEach(dim=>{
+    //             dim.range = [dim.min,dim.max];
+    //             dim.scale.domain(dim.range)
+    //         })
+    //     }else{
+    //         dimensions.forEach(dim=>{
+    //             dim.range = dim.possibleUnit.range.slice();
+    //             dim.scale.domain(dim.range)
+    //         })
+    //     }
+    //
+    //     // setDimensions(dimensions);
+    //     if (scheme.computers) {
+    //         Object.keys(scheme.computers).forEach(d => {
+    //             scheme.time_stamp.forEach((t, ti) => {
+    //                 dimensions.forEach((dim, ki) => {
+    //                     scheme.tsnedata[d][ti][ki] = dimensions[ki].scale(scheme.computers[d][dim.text][ti] ?? undefined) ?? null;
+    //                 })
+    //             })
+    //         });
+    //         // setScheme({...scheme});
+    //         if (selectedSer==='cluster'){
+    //             console.log('selectedSer changed')
+    //             recalCluster(scheme, dimensions,({clusterInfo,scheme})=>{
+    //                 if (selectedSer==='cluster') {
+    //                     setScheme(scheme);
+    //                     updateColor(_draw3DData, scheme,undefined,clusterInfo);
+    //                     set_draw3DData([..._draw3DData]);
+    //                     draw3DData.forEach(d=>d.possArr=[...d.possArr]);
+    //                     setDraw3DData([...draw3DData]);
+    //                 }
+    //             })
+    //         }else{
+    //             updateColor(_draw3DData, scheme);
+    //             set_draw3DData([..._draw3DData]);
+    //             draw3DData.forEach(d => d.possArr = [...d.possArr]);
+    //             setDraw3DData([...draw3DData]);
+    //         }
+    //     }
+    // },[metricRangeMinMax]);
 
     const metricSetting= useMemo(()=>{
         if (dimensions[selectedSer]){
+            debugger
             const range = (dimensions[selectedSer]??{range:[0,1]}).range;
             return {
                 // legend:colorLegend({label:'Legend',
                 // value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
 
-            metricTrigger:{value:false, label:'Filter'}
-        ,metricFilter:{render:(get)=>get("Setting.metricTrigger"),value:range[0],min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1, label:""}
-        ,stackOption:{render:(get)=>get("Setting.metricTrigger"),value:false,label:"Stack"}
+        metricFilter:{value:range[0],label:'Filter',min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1}
         ,suddenThreshold:{value:0,min:0,max:(dimensions[selectedSer]??{max:1}).max,step:0.1, label:"Sudden Change"}}
         }else{
             return {}
         }
-    },[dimensions,selectedUser,selectedSer,draw3DData,scheme,metricRangeMinMax]);
+    },[dimensions,selectedSer,metricRangeMinMax]);
 
-    const [config,setConfig] = useControls("Setting",()=>(metricSetting),[dimensions,selectedUser,selectedSer,draw3DData,scheme,metricRangeMinMax]);
+    const [config,setConfig] = useControls("Setting",()=>(metricSetting),[dimensions,selectedSer,metricRangeMinMax]);
 
+    useEffect(()=>{
+        if (dimensions[selectedSer])
+        {
+            setConfig({metricFilter: dimensions[selectedSer].range[0]})
+        }
+    },[selectedSer,metricRangeMinMax])
     const binopt = useControls("DatasetCluster",{clusterMethod:{label:'Method',value:'leaderbin',options:['leaderbin','kmean']},
         normMethod:{value:'l2',options:['l1','l2']},
         bin:folder({startBinGridSize:{value:10,render:()=>false},range:{value:[8,9], min:1,step:1, max:20}},{label:'parameter',render:(get)=>get("DatasetCluster.clusterMethod")==="leaderbin"}),
@@ -382,6 +441,10 @@ function App() {
                 computers[comp][k].sudden = [];
                 let current = +computers[comp][k][0];
                 computers[comp][k].forEach((d,ti)=>{
+                    if (d ==='') {
+                        computers[comp][k][ti] = null;
+                        d = null;
+                    }
                     if (d!==null) {
                         if (d < dimensions[ki].range[0])
                             dimensions[ki].range[0] = d;
@@ -995,7 +1058,6 @@ function App() {
                                   line3D={line3D}
                                   selectedSer={selectedSer}
                                   selectedSer2={selectedSer2}
-                                  stackOption={config.stackOption}
                                   getKey={(d)=>d.data.key+' '+d.data.timestep}
 
                                   sankeyData={sankeyData}

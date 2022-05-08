@@ -3,9 +3,10 @@ import * as d3 from 'd3'
 let closeDistance = 75;
 
 
-const Lasso = React.forwardRef(({start,end,width,height,...props},ref)=> {
+const Lasso = React.forwardRef(({start,end,width,height,disable,axis,...props},ref)=> {
     const [lassoPolygon,setlassoPolygon] = useState({value:undefined})
-
+    const svgRef = useRef();
+    const gRef = useRef();
     // distance last point has to be to first point before it auto closes when mouse is released
     useEffect(()=>{
         const area = d3.select(svgRef.current).select('rect.area')
@@ -17,8 +18,9 @@ const Lasso = React.forwardRef(({start,end,width,height,...props},ref)=> {
 
         area.call(drag);
     },[start,end]);
+
     const handleDragStart = (event) => {
-        lassoPolygon.value = [d3.pointer(event,svgRef.current)];
+        lassoPolygon.value = [d3.pointer(event,gRef.current)];
         lassoPolygon.condition = false;
         lassoPolygon.end = false;
         setlassoPolygon({...lassoPolygon})
@@ -27,7 +29,7 @@ const Lasso = React.forwardRef(({start,end,width,height,...props},ref)=> {
     }
 
     const handleDrag = (event) => {
-        const point = d3.pointer(event,svgRef.current);
+        const point = d3.pointer(event,gRef.current);
         lassoPolygon.value.push(point);
 
         // indicate if we are within closing distance
@@ -65,14 +67,42 @@ const Lasso = React.forwardRef(({start,end,width,height,...props},ref)=> {
             reset: ()=>{
                 lassoPolygon.value = undefined;
                 setlassoPolygon(lassoPolygon)
+            },
+            zoom:(transform)=>{
+                if (gRef.current){
+                    d3.select(gRef.current).attr('transform',`translate(${transform.x},${transform.y}) scale(${transform.k})`)
+                }
             }
         })
     });
 
-    const svgRef = useRef();
-    return <svg ref={svgRef} width={width} height={height} viewBox={[0,0,width,height]} style={{position:'absolute',top:0,left:0, width:'100%', height:'100%'}}>
-        <g className="lasso-group">
-            <rect className={'area'} width={'100%'} height={'100%'} opacity={0}/>
+
+    return <svg ref={svgRef} width={width} height={height} viewBox={[0,0,width,height]} style={{position:'absolute',top:0,left:0, width:'100%', height:'100%', pointerEvents: disable?'none':null}}>
+        <defs>
+            <marker id={'arrowRed'} refX={6} refY={6} markerWidth={30} markerHeight={30} orient={"auto"}>
+                <path d={"M 0 0 12 6 0 12 3 6"} fill={"red"}/>
+            </marker>
+            <filter id='shadow' color-interpolation-filters="sRGB">
+                <feComponentTransfer in="SourceGraphic">
+                    <feFuncR type="discrete" tableValues=".5"/>
+                    <feFuncG type="discrete" tableValues=".5"/>
+                    <feFuncB type="discrete" tableValues=".5"/>
+                </feComponentTransfer>
+                <feGaussianBlur stdDeviation=".85"/>
+                <feOffset dx="1" dy="1" result="shadow"/>
+                <feComposite in="SourceGraphic" in2="shadow" operator="over"/>
+            </filter>
+        </defs>
+        <rect className={'area'} width={'100%'} height={'100%'} opacity={0}/>
+        <g className="lasso-group" ref={gRef}>
+            <g className={'axis'}>
+                {axis&&axis.feature.map(a=><g><line key={a.name} x1={a[0][0]} y1={a[0][1]} x2={a[1][0]} y2={a[1][1]}
+                                           stroke={'red'} strokeWidth={2} markerEnd={`url(#arrowRed)`}/>
+                    <text x={a[1][0]} y={a[1][1]} textAnchor={"middle"} dy={a[1][1]>a[0][1] ? 15:-15}
+                          filter="url(#shadow)"
+                          fill={'red'} >{a.name}</text>
+                </g>)}
+            </g>
             {lassoPolygon.value&&<>
                 <path fill={'#0bb'} fillOpacity={0.1} stroke={'#0bb'} strokeDasharray={'3 3'} d={polygonToPath(lassoPolygon.value)+((lassoPolygon.condition&&lassoPolygon.end)?'Z':'')}/>
                 {(!lassoPolygon.end)&&<line

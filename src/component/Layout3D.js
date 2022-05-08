@@ -32,7 +32,7 @@ const SEQUNCE = [{x: -90, y: -50, z: 200, zoom: 30}];//[{x:-40,y:10,z:100,zoom:3
 
 const width = 1200;
 const height = 700;
-const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, config, selectedTime, selectedComputeMap, setSelectedComputeMap, selectedUser, dimensions, selectedSer,selectedSer2, scheme, colorByName, colorCluster, colorBy, getMetric, metrics, theme, line3D, layout, users, selectService, stackOption = false, getKey}) {
+const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, config, selectedTime, selectedComputeMap, setSelectedComputeMap, selectedUser, dimensions, selectedSer,selectedSer2, scheme, colorByName, colorCluster, colorBy, getMetric, metrics, theme, line3D, layout, users, selectService, getKey}) {
     const [currentSequnce, setCurrentSequnce] = useState(0);
     const pcaRef = useRef();
 
@@ -60,11 +60,11 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
 
     const pcaSelect = useControls("PCA",{PCAchart:viz({value:0,
             label:'',
-            com:<div><PCAchart ref={pcaRef} setSelectedComputeMap={setSelectedComputeMap}/></div>}),
+            com:<div><PCAchart ref={pcaRef} dimensions={dimensions} setSelectedComputeMap={setSelectedComputeMap}/></div>}),
         Apply:button((get)=>{
             console.log('clicked apply')
             pcaRef.current.calculatePCA(_draw3DData)
-        })},[_draw3DData])
+        })},[_draw3DData,dimensions])
     useEffect(() => {
         if (config3D.cameraAnimate)
             if (cameraRef.current) {
@@ -192,13 +192,13 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
 
     useEffect(() => {
 
-        getSelectedDraw3Data({selectedUser, selectedComputeMap}, _draw3DData, scheme, config.stackOption)
-    }, [_draw3DData, selectedComputeMap, selectedUser, scheme, config.suddenThreshold, config.metricTrigger, config.metricFilter, config.stackOption])
+        getSelectedDraw3Data({selectedUser, selectedComputeMap}, _draw3DData, scheme)
+    }, [_draw3DData, selectedComputeMap, selectedUser, scheme, config.suddenThreshold, config.metricFilter])
 
-    function getSelectedDraw3Data({selectedUser, selectedComputeMap}, __draw3DData = _draw3DData, _scheme = scheme, isStack = config.stackOption) {
-        let isFilter = (!!selectedComputeMap || selectedUser || (!!config.suddenThreshold) || config.metricTrigger);
+    function getSelectedDraw3Data({selectedUser, selectedComputeMap}, __draw3DData = _draw3DData, _scheme = scheme) {
+        let isFilter = true//(!!selectedComputeMap || selectedUser || (!!config.suddenThreshold));
         // selectedComputeMap=selectedComputeMap??{};
-        console.log('isstack', isStack)
+        debugger
         let flatmap = selectedComputeMap ? ob2arr(selectedComputeMap) : undefined;
 
         function ob2arr(selectedComputeMap) {
@@ -211,91 +211,91 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
             return flatmap;
         }
 
-        if (config.metricTrigger) {
-            let sudenCompMap = {};
+        if (_scheme.computers && dimensions[selectedSer]) {
+            let compMap = {};
             Object.keys(_scheme.computers).forEach(comp => {
                 const arr = _scheme.computers[comp][dimensions[selectedSer].text];
-                const isEmpty = !sudenCompMap[comp];
+                const isEmpty = !compMap[comp];
                 if (isEmpty)
-                    sudenCompMap[comp] = {};
+                    compMap[comp] = {};
                 arr.forEach((d, ti) => {
                     if (d >= config.metricFilter) {
-                        sudenCompMap[comp][ti] = true;
+                        compMap[comp][ti] = true;
                     }
                 });
-                if (isEmpty && (!Object.keys(sudenCompMap[comp]).length))
-                    delete  sudenCompMap[comp]
+                if (isEmpty && (!Object.keys(compMap[comp]).length))
+                    delete  compMap[comp]
             });
-            let suddenMap = ob2arr(sudenCompMap);
+            let valueMap = ob2arr(compMap);
             if (flatmap)
-                flatmap = _.intersectionBy(flatmap, suddenMap, 'key');
+                flatmap = _.intersectionBy(flatmap, valueMap, 'key');
             else
-                flatmap = suddenMap;
-        }
-        if (config.suddenThreshold) {
-            let sudenCompMap = {}
-            Object.keys(_scheme.computers).forEach(comp => {
-                const arr = _scheme.computers[comp][dimensions[selectedSer].text];
-                const isEmpty = !sudenCompMap[comp];
-                if (isEmpty)
-                    sudenCompMap[comp] = {};
-                arr.sudden.forEach((d, ti) => {
-                    if (Math.abs(d) >= config.suddenThreshold) {
-                        sudenCompMap[comp][ti] = true;
-                        sudenCompMap[comp][ti - 1] = true;
-                    }
-                });
-                if (isEmpty && (!Object.keys(sudenCompMap[comp]).length))
-                    delete  sudenCompMap[comp]
-            });
-            let suddenMap = ob2arr(sudenCompMap);
-            if (flatmap)
-                flatmap = _.intersectionBy(flatmap, suddenMap, 'key');
-            else
-                flatmap = suddenMap;
-        }
+                flatmap = valueMap;
 
-        if (selectedUser) {
-            let selectedUsereMap = {}
-            _scheme.users[selectedUser].node.forEach(com => {
-                if (_scheme.computers[com]) {
-                    selectedUsereMap[com] = {};
-                    _scheme.computers[com].users.forEach((u, i) => {
-                        if (u.find(d => d === selectedUser)) selectedUsereMap[com][i] = true;
+            if (config.suddenThreshold) {
+                let sudenCompMap = {}
+                Object.keys(_scheme.computers).forEach(comp => {
+                    const arr = _scheme.computers[comp][dimensions[selectedSer].text];
+                    const isEmpty = !sudenCompMap[comp];
+                    if (isEmpty)
+                        sudenCompMap[comp] = {};
+                    arr.sudden.forEach((d, ti) => {
+                        if (Math.abs(d) >= config.suddenThreshold) {
+                            sudenCompMap[comp][ti] = true;
+                            sudenCompMap[comp][ti - 1] = true;
+                        }
                     });
-                }
-            });
-            let usereMap = ob2arr(selectedUsereMap);
-            if (flatmap)
-                flatmap = _.intersectionBy(flatmap, usereMap, 'key');
-            else
-                flatmap = usereMap;
-        } else if (!isFilter) {
-            setDraw3DData(__draw3DData);
-            if (userHighlight !== undefined) {
-                set_UserHighlight();
-                setUserHighlight();
+                    if (isEmpty && (!Object.keys(sudenCompMap[comp]).length))
+                        delete  sudenCompMap[comp]
+                });
+                let suddenMap = ob2arr(sudenCompMap);
+                if (flatmap)
+                    flatmap = _.intersectionBy(flatmap, suddenMap, 'key');
+                else
+                    flatmap = suddenMap;
             }
-            return
-        } else if (!flatmap || (flatmap.length === 0)) {
-            setDraw3DData([]);
-            if ((!userHighlight) || Object.keys(userHighlight).length) {
-                set_UserHighlight({});
-                setUserHighlight({});
-            }
-            return
-        }
-        selectedComputeMap = {};
-        flatmap.forEach(({comp, timestep}) => {
-            if (!selectedComputeMap[comp])
-                selectedComputeMap[comp] = {};
-            selectedComputeMap[comp][timestep] = true;
-        })
-        const newdata = getData();
-        setDraw3DData(newdata.draw3DData);
-        set_UserHighlight(newdata.users);
-        setUserHighlight(newdata.users);
 
+            if (selectedUser) {
+                let selectedUsereMap = {}
+                _scheme.users[selectedUser].node.forEach(com => {
+                    if (_scheme.computers[com]) {
+                        selectedUsereMap[com] = {};
+                        _scheme.computers[com].users.forEach((u, i) => {
+                            if (u.find(d => d === selectedUser)) selectedUsereMap[com][i] = true;
+                        });
+                    }
+                });
+                let usereMap = ob2arr(selectedUsereMap);
+                if (flatmap)
+                    flatmap = _.intersectionBy(flatmap, usereMap, 'key');
+                else
+                    flatmap = usereMap;
+            } else if (!isFilter) {
+                setDraw3DData(__draw3DData);
+                if (userHighlight !== undefined) {
+                    set_UserHighlight();
+                    setUserHighlight();
+                }
+                return
+            } else if (!flatmap || (flatmap.length === 0)) {
+                setDraw3DData([]);
+                if ((!userHighlight) || Object.keys(userHighlight).length) {
+                    set_UserHighlight({});
+                    setUserHighlight({});
+                }
+                return
+            }
+            selectedComputeMap = {};
+            flatmap.forEach(({comp, timestep}) => {
+                if (!selectedComputeMap[comp])
+                    selectedComputeMap[comp] = {};
+                selectedComputeMap[comp][timestep] = true;
+            })
+            const newdata = getData();
+            setDraw3DData(newdata.draw3DData);
+            set_UserHighlight(newdata.users);
+            setUserHighlight(newdata.users);
+        }
         function getData() {
             const users = {};
             const data = __draw3DData.filter(d => {
@@ -317,13 +317,12 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         //         return (d) => (d - dimensions[selectedSer].scale(config.metricFilter[0])) / dimensions[selectedSer].scale(config.metricFilter[1] - config.metricFilter[0])
         // }
         return (d) => d;
-    }, [config.metricTrigger, config.metricFilter, dimensions, selectedSer])
+    }, [config.metricFilter, dimensions, selectedSer])
     return <div ref={ref} className={"containerThree"}>
-        <div ref={view1} style={{boxSizing: 'border-box', position:'relative'}}/>
-        <div ref={view2} style={{boxSizing: 'border-box', position:'relative'}}/>
-
+        <div ref={view1} style={{position:'relative',width:'50%'}}/>
+        <div ref={view2} style={{position:'relative',width:'50%'}}/>
+        <div className="canvas">
         <Canvas onCreated={(state) => state.events.connect(ref.current)}
-                className="canvas"
         >
             <View index={1} track={view1} fames={1}>
                 {/*<ambientLight intensity={config.light}/>*/}
@@ -343,13 +342,16 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 />
                 <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
                 {/*<Suspense fallback={null}>*/}
-                <group>
+
                     {/*<LayoutMap data={layout}/>*/}
                     {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
                     <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
-                        <NodeLayout data={draw3DData} timeGap={config3D.timeGap} getKey={getKey}
+                        <NodeLayout data={draw3DData}
+                                    timeGap={config3D.timeGap}
+                                    getKey={getKey}
                                     selectService={selectedSer}
-                                    adjustscale={adjustscale()}
+                                    // adjustscale={adjustscale()}
+                                    adjustscale={d=>d}
                                     onUserhighlight={(d) => setUserHighlight(d)}
                                     onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
                         />
@@ -385,13 +387,12 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                         userHighlight={userHighlight}
                     />
                     </Html>
-                </group>
                 {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
                     {/*<GizmoViewcube/>*/}
                 {/*</GizmoHelper>*/}
                 {/*<BakeShadows />*/}
                 {/*</Suspense>*/}
-                <Environment preset={"dawn"}/>
+                {/*<Environment preset={"dawn"}/>*/}
                 <CustomCamera makeDefault ref={cameraRef}/>
             </View>
 
@@ -411,7 +412,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 {/*<Suspense fallback={null}>*/}
                 <group>
                     {/*<LayoutMap data={layout}/>*/}
-                    {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
+
                     <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
                         <NodeLayout data={draw3DData} timeGap={config3D.timeGap} getKey={getKey}
                                     selectService={selectedSer2}
@@ -437,6 +438,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 <CustomCamera makeDefault  ref={cameraRef}/>
             </View>
         </Canvas>
+        </div>
     </div>
 }
 export default Layout3D;
