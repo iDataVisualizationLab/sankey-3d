@@ -44,7 +44,7 @@ export default function Dataset({onChange,onLoad,onError}) {
                     })
                 }
             }
-        }
+        }, label:"Current"
     }
     }),[datalist,past]);
 
