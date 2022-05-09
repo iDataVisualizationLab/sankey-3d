@@ -9,7 +9,7 @@ import * as d3 from "d3"
 
 import _layout from "./data/layout";
 // import _data from "./data/2182022";
-import _data from "./data/nocona_24h";
+// import _data from "./data/nocona_24h";
 // import _data from "./data/nocona-jieoyao";
 import * as _ from "lodash";
 import {getRefRange, getUrl} from "./component/ulti"
@@ -28,6 +28,7 @@ import {viz} from "./component/leva/Viz";
 import {Radar} from "./component/radar";
 import Sankey from "./component/Sankey";
 import {PCAchart} from "./component/PCAchart";
+import Dataset from "./component/Dataset";
 
 const ColorModeContext = React.createContext({
     toggleColorMode: () => {
@@ -59,63 +60,20 @@ function App() {
 
     // const [selectedSer, setSelectedSer] = React.useState(0);
 
-    const [dataset,setDataset] = useControls("Dataset",()=>({
-        isRealtime:{label:"Realtime",value:false,onChange:(val)=>{
-                if (val){
-                    setIsBusy('Load real time data');
-                    const _end = new Date(); //'2020-02-14T12:00:00-05:00'
-                    let _start = new Date(_end - dataset.duration); //'2020-02-14T18:00:00-05:
-                    const interval = '1m';
-                    const value = 'max';
-                    const compress = false;
-                    const url = getUrl({_start,_end,interval,value,compress});
-
-                    d3.text(url).then(s=>{
-                        setAlertMess({level:"success",message:"Successfully load"})
-                        setIsBusy('Process data');
-                        const _data = JSON.parse(s.replaceAll("NaN",'null'));
-                        const {scheme, draw3DData, drawUserData, dimensions, layout,sankeyData} = handleData(_data);
-                        setDimensions(dimensions);
-                        setScheme(scheme);
-                        setSankeyData(sankeyData);
-                        updateColor(draw3DData, scheme);
-                        set_draw3DData(draw3DData);
-                        setDrawUserData(drawUserData);
-                        // getSelectedDraw3Data({selectedUser},draw3DData,scheme);
-                        setLayout(layout);
-                        setIsBusy(false);
-                        const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
-                        setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()})
-                        recalCluster(scheme, dimensions);
-                    }).catch(e=>{
-                        setAlertMess({level:"error",message:"Can't load realtime data"})
-                        setIsBusy(false);
-                    })
-                }else {
-                    setIsBusy('Load simulation data');
-                    setTimeout(() => {
-                        setIsBusy('Process data');
-                        const {scheme, draw3DData,drawUserData, dimensions,sankeyData, layout} = handleData(_data);
-                        setDimensions(dimensions);
-                        setScheme(scheme);
-                        updateColor(draw3DData, scheme);
-                        set_draw3DData(draw3DData);
-                        setSankeyData(sankeyData);
-                        setDrawUserData(drawUserData);
-                        // getSelectedDraw3Data({selectedUser},draw3DData,scheme);
-                        setLayout(layout);
-                        setIsBusy(false);
-                        const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
-                        setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()});
-                        console.log('Init data')
-                        // recalCluster(scheme, dimensions);
-
-                    }, 1);
-                }
-            }},
-        // duration:{label:"Duration",value:3600000, options:[['1 hour', 3600000],['2 hours',7200000],['3 hours',9600000]].reduce((a,v)=>({...a,[v[0]]:v[1]}),{})},
-        dataInfo:{label:"",value:"",rows:2,editable:false}
-    }))
+    const onChangeData = useCallback((_data)=>{
+        const {scheme, draw3DData, drawUserData, dimensions, layout,sankeyData} = handleData(_data);
+        setDimensions(dimensions);
+        setScheme(scheme);
+        setSankeyData(sankeyData);
+        updateColor(draw3DData, scheme);
+        set_draw3DData(draw3DData);
+        setDrawUserData(drawUserData);
+        // getSelectedDraw3Data({selectedUser},draw3DData,scheme);
+        setLayout(layout);
+        setIsBusy(false);
+        const timerange = [+scheme.time_stamp[0],+scheme.time_stamp[scheme.time_stamp.length-1]];
+        setSelectedTime({min:timerange[0],max:timerange[1],value:timerange,arr:scheme.time_stamp.slice()})
+    },[]);
     const optionsColor = useMemo(()=>{
         const option = dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {});
         // option["Dataset cluster"] = "cluster"
@@ -619,7 +577,7 @@ function App() {
         const userSize = d3.scaleSqrt().domain(d3.extent(drawUserData,d=>d.links.length)).range([0.5,1]);
         drawUserData.forEach(d=>d.scale=userSize(d.links.length));
 
-        setDataset({dataInfo:`from ${timerange[0].toLocaleString()}\nto ${timerange[1].toLocaleString()}`});
+        // setDataset({dataInfo:`from ${timerange[0].toLocaleString()}\nto ${timerange[1].toLocaleString()}`});
 
         const scheme = {data: _data,users,computers,jobs,tsnedata,time_stamp:_data.time_stamp, timerange};
         scheme.emptyMap=noJobMap;
@@ -1050,6 +1008,7 @@ function App() {
         <ColorModeContext.Provider value={colorMode}>
             <ThemeProvider theme={theme}>
                 <CssBaseline/>
+                    <Dataset onChange={onChangeData.bind(this)} onLoad={(m)=>setIsBusy(m)} onError={(e)=>setAlertMess(e)}/>
                     <div style={{height: "100vh",width:'100wh',overflow:'hidden'}}>
                         <Layout3D layout={layout}
                                   time_stamp={scheme.time_stamp}

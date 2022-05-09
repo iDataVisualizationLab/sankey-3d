@@ -399,19 +399,19 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                             userHighlight={userHighlight}
                         />
                         </Html>
-                    <group position={[0, -(height / 100/2), 0]}>
-                        <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
-                        <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-                            <planeGeometry />
-                            <shadowMaterial transparent opacity={0.3} />
-                        </mesh>
-                    </group>
+                    {/*<group position={[0, -(height / 100/2), 0]}>*/}
+                        {/*<gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />*/}
+                        {/*<mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>*/}
+                            {/*<planeGeometry />*/}
+                            {/*<shadowMaterial transparent opacity={0.3} />*/}
+                        {/*</mesh>*/}
+                    {/*</group>*/}
                     <GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={0}>
                         <GizmoViewcube/>
                     </GizmoHelper>
                     {/*<BakeShadows />*/}
                     {/*</Suspense>*/}
-                    {/*<Environment preset={"dawn"}/>*/}
+                    <Environment preset={"dawn"}/>
                     <CustomCamera ref={cameraRef}/>
                 </Canvas>
             </div>
@@ -452,13 +452,13 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                         {/*<UserLayout data={users}/>*/}
 
 
-                    <group position={[0, -(height / 100/2), 0]}>
-                        <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
-                        <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-                            <planeGeometry />
-                            <shadowMaterial transparent opacity={0.3} />
-                        </mesh>
-                    </group>
+                    {/*<group position={[0, -(height / 100/2), 0]}>*/}
+                        {/*<gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />*/}
+                        {/*<mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>*/}
+                            {/*<planeGeometry />*/}
+                            {/*<shadowMaterial transparent opacity={0.3} />*/}
+                        {/*</mesh>*/}
+                    {/*</group>*/}
                     {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
                     {/*<GizmoViewcube/>*/}
                     {/*</GizmoHelper>*/}
