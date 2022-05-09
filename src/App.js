@@ -85,6 +85,10 @@ function App() {
         // option["Dataset cluster"] = "cluster"
         return option;
     },[scheme.users]);
+    const optionsView = useMemo(()=>{
+        const option = dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {'':undefined});
+        return option;
+    },[dimensions]);
     const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"selectedUser":{label:'User',value:undefined,options:optionsUser}}),[optionsUser]);
     const [{selectedSer,selectedSer2},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"View 1",value:0,
             onChange:(val)=>{
@@ -96,7 +100,7 @@ function App() {
                 // if (dimensions[val])
                 //     setConfig({metricFilter: dimensions[val].range[0]})
             },transient:false},
-        selectedSer2:{options:dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {}),label:"View 2",value:0}
+        selectedSer2:{options:optionsView,label:"View 2",value:undefined}
     }),[dimensions,_draw3DData,draw3DData,scheme]);
     // useControls("Setting",()=>{
     //     console.log(dimensions,selectedSer,dimensions[selectedSer])
@@ -197,20 +201,20 @@ function App() {
 
     const metricSetting= useMemo(()=>{
         if (dimensions[selectedSer]){
-            debugger
             const range = (dimensions[selectedSer]??{range:[0,1]}).range;
             return {
                 // legend:colorLegend({label:'Legend',
                 // value:(dimensions[selectedSer]??{range:[0,1]}).range,range:(dimensions[selectedSer]??{range:[0,1]}).range,scale:colorByMetric}),
 
-        metricFilter:{value:range[0],label:'Filter',min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1}
+        filterLarger:{value:true,label:'Greater than'},
+        metricFilter:{value:range[0],label:'',min:(dimensions[selectedSer]??{range:[0,1]}).range[0],max:(dimensions[selectedSer]??{range:[0,1]}).range[1],step:0.1}
         ,suddenThreshold:{value:0,min:0,max:(dimensions[selectedSer]??{max:1}).max,step:0.1, label:"Sudden Change"}}
         }else{
-            return {}
+            return {filterLarger:{value:true,label:'Greater than'}}
         }
     },[dimensions,selectedSer,metricRangeMinMax]);
 
-    const [config,setConfig] = useControls("Setting",()=>(metricSetting),[dimensions,selectedSer,metricRangeMinMax]);
+    const [config,setConfig] = useControls("Filter",()=>(metricSetting),[dimensions,selectedSer,metricRangeMinMax]);
 
     useEffect(()=>{
         if (dimensions[selectedSer])

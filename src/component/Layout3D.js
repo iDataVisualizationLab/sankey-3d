@@ -40,7 +40,6 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     const config3D = useControls("3D", {
         timeGap: {value: 5, min: 1, max: 10, step: 0.1, label: 'Bar height'},
         light: {value: 0.5, min: 0, max: 1, step: 0.01},
-        doubleView: {value: false, label:'Double View'},
         resetView: button((get) => {
 
             cameraRef.current.pointOfView({x: -90, y: 50, z: 200, rx:0, ry:0, rz:0, zoom: 30}, 4000);
@@ -206,7 +205,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     useEffect(() => {
 
         getSelectedDraw3Data({selectedUser, selectedComputeMap}, _draw3DData, scheme)
-    }, [_draw3DData, selectedComputeMap, selectedUser, scheme, config.suddenThreshold, config.metricFilter])
+    }, [_draw3DData, selectedComputeMap, selectedUser, scheme, config.suddenThreshold, config.metricFilter, config.filterLarger])
 
     function getSelectedDraw3Data({selectedUser, selectedComputeMap}, __draw3DData = _draw3DData, _scheme = scheme) {
         let isFilter = true//(!!selectedComputeMap || selectedUser || (!!config.suddenThreshold));
@@ -226,6 +225,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         }
 
         if (_scheme.computers && dimensions[selectedSer]) {
+            const conditionFunc = config.filterLarger?((d)=>(d >= config.metricFilter)):((d)=>(d <= config.metricFilter))
             let compMap = {};
             Object.keys(_scheme.computers).forEach(comp => {
                 const arr = _scheme.computers[comp][dimensions[selectedSer].text];
@@ -233,7 +233,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 if (isEmpty)
                     compMap[comp] = {};
                 arr.forEach((d, ti) => {
-                    if (d >= config.metricFilter) {
+                    if (conditionFunc(d)) {
                         compMap[comp][ti] = true;
                     }
                 });
@@ -323,17 +323,9 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         }
     }
 
-    const adjustscale = useCallback(() => {
-        // if (config.metricTrigger && dimensions[selectedSer]) {
-        //     if (config.metricFilter[1] === config.metricFilter[0])
-        //         return (d) => 0.5;
-        //     else
-        //         return (d) => (d - dimensions[selectedSer].scale(config.metricFilter[0])) / dimensions[selectedSer].scale(config.metricFilter[1] - config.metricFilter[0])
-        // }
-        return (d) => d;
-    }, [config.metricFilter, dimensions, selectedSer])
+
     return <div className={"containerThree"}>
-        <div ref={view1} style={{position:'relative',width:config3D.doubleView?'50%':'100%', pointerEvents:'all'}}>
+        <div ref={view1} style={{position:'relative',width:(selectedSer2!==undefined)?'50%':'100%', pointerEvents:'all'}}>
             <div className="canvas">
                 <Canvas>
                     {/*<ambientLight intensity={config.light}/>*/}
@@ -416,7 +408,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 </Canvas>
             </div>
         </div>
-        {config3D.doubleView&&<div ref={view2} style={{position:'relative',width:config3D.doubleView?'50%':'100%', pointerEvents:'all'}}>
+        {(selectedSer2!==undefined)&&<div ref={view2} style={{position:'relative',width:'50%', pointerEvents:'all'}}>
             <div className="canvas">
                 <Canvas>
                     <directionalLight position={[-10, -10, -5]} intensity={0.5}/>

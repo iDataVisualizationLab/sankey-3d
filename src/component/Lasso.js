@@ -1,10 +1,12 @@
 import React, {useImperativeHandle, useRef,useState, useEffect} from "react";
 import * as d3 from 'd3'
+import Popover from "@mui/material/Popover/Popover";
 let closeDistance = 75;
 
 
 const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer,...props},ref)=> {
     const [lassoPolygon,setlassoPolygon] = useState({value:undefined})
+    const [axisOver,setAxisOver] = useState(undefined);
     const svgRef = useRef();
     const gRef = useRef();
     // distance last point has to be to first point before it auto closes when mouse is released
@@ -77,7 +79,7 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer
     });
 
 
-    return <svg ref={svgRef} width={width} height={height} viewBox={[0,0,width,height]} style={{position:'absolute',top:0,left:0, width:'100%', height:'100%', pointerEvents: disable?'none':null}}>
+    return <><svg ref={svgRef} width={width} height={height} viewBox={[0,0,width,height]} style={{position:'absolute',top:0,left:0, width:'100%', height:'100%', pointerEvents: disable?'none':null}}>
         <defs>
             <marker id={'arrowred'} refX={6} refY={6} markerWidth={30} markerHeight={30} orient={"auto"}>
                 <path d={"M 0 0 12 6 0 12 3 6"} fill={"red"}/>
@@ -100,7 +102,10 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer
         <g className="lasso-group" ref={gRef}>
             <g className={'axis'}>
                 {axis&&axis.feature.map((a,i)=><g key={a.name} opacity={i===selectedSer?1:0.2}><line x1={a[0][0]} y1={a[0][1]} x2={a[1][0]} y2={a[1][1]}
-                                           stroke={i===selectedSer?'red':'gray'} strokeWidth={2} markerEnd={`url(#arrow${(i===selectedSer)?'red':'gray'})`}/>
+                                           stroke={i===selectedSer?'red':'gray'} strokeWidth={2} markerEnd={`url(#arrow${(i===selectedSer)?'red':'gray'})`}
+                     onMouseOver={(e)=>setAxisOver({el:e.source,context:a.name})}
+                     onMouseLeave={(e)=>setAxisOver(undefined)}
+                />
                     {(i===selectedSer)&&<text x={a[1][0]} y={a[1][1]} textAnchor={"middle"} dy={a[1][1]>a[0][1] ? 15:-15}
                           filter="url(#shadow)"
                           fill={i===selectedSer?'red':'gray'} >{a.name}</text>}
@@ -117,6 +122,20 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer
             </>}
         </g>
     </svg>
+        {axisOver&&<Popover
+            anchorEl={axisOver.el}
+            anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'center',
+            }}
+            transformOrigin={{
+                vertical: 'bottom',
+                horizontal: 'center',
+            }}
+        >
+            {axisOver.content}
+        </Popover>}
+        </>
 });
 export default Lasso;
 
