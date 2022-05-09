@@ -98,7 +98,7 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
                     d._pos = [d[0],d[1],d[2] + scalesize[2] * size[2] / 2]
                     tempObject.position.x = THREE.MathUtils.lerp(tempVec.x, d[0], trackerData.time);
                     tempObject.position.y = THREE.MathUtils.lerp(tempVec.y, d[1], trackerData.time);
-                    tempObject.position.z = THREE.MathUtils.lerp(tempVec.z, d[2] + scalesize[2] * size[2] / 2, 0.1);
+                    tempObject.position.z = THREE.MathUtils.lerp(tempVec.z, d[2] + scalesize[2] * size[2] / 2, trackerData.time);
                     // tempObject.position.set(Math.random(),Math.random(),0)
 
                     tempVec.setFromMatrixScale(tempMatrix)
@@ -108,13 +108,19 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
 
                     // tempObject.scale.set(1,1,100)
 
-                    colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0.01;
-                    // meshRef.current.geometry.attributes.color.needsUpdate = true;
+                    colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0;
+                    meshRef.current.geometry.attributes.color.needsUpdate = true;
                     tempObject.updateMatrix();
                     meshRef.current.setMatrixAt(i, tempObject.matrix);
                 });
                 meshRef.current.instanceMatrix.needsUpdate = true;
+            }else{
+                data.forEach((d, i) => {
+                    colorArray[i * 4 + 3] = (hoverEmpty || (d.data.key === data[hovered].data.key)) ? 1 : 0.001;
+                    meshRef.current.geometry.attributes.color.needsUpdate = true;
+                })
             }
+
         }
     });
     const getDataPos = useCallback((d)=>{
@@ -123,14 +129,15 @@ export default function NodeLayout({data=[],selectService=0,size=[0.4, 0.1, 0.01
     return <><instancedMesh ref={meshRef} args={[null, null, data.length]}
                             onClick={(e)=>{
                                 setfreeze(!freeze); if(freeze) set(undefined)}}
-                            onPointerMove={(e) => {e.stopPropagation();
-                            console.log(data[e.instanceId])
-                            if(!freeze){
-                                set(e.instanceId);
-                            const h = {};
-                            h[data[e.instanceId].data.user]=true;
-                                onUserhighlight(h)
-                            }}}
+                            onPointerMove={(e) => {
+                            e.stopPropagation();
+                                if(!freeze){
+                                    set(e.instanceId);
+                                    const h = {};
+                                    h[data[e.instanceId].data.user]=true;
+                                    onUserhighlight(h,data[e.instanceId])
+                                }
+                            }}
                             onPointerOut={(e) => {e.stopPropagation(); if(!freeze) {set(undefined); onReleaseUserhighlight()}}}>
         <boxGeometry args={size}>
             <instancedBufferAttribute attach={'attributes-color'} args={[colorArray, 4]} />

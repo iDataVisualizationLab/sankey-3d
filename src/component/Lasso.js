@@ -3,7 +3,7 @@ import * as d3 from 'd3'
 let closeDistance = 75;
 
 
-const Lasso = React.forwardRef(({start,end,width,height,disable,axis,...props},ref)=> {
+const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer,...props},ref)=> {
     const [lassoPolygon,setlassoPolygon] = useState({value:undefined})
     const svgRef = useRef();
     const gRef = useRef();
@@ -79,8 +79,11 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,...props},r
 
     return <svg ref={svgRef} width={width} height={height} viewBox={[0,0,width,height]} style={{position:'absolute',top:0,left:0, width:'100%', height:'100%', pointerEvents: disable?'none':null}}>
         <defs>
-            <marker id={'arrowRed'} refX={6} refY={6} markerWidth={30} markerHeight={30} orient={"auto"}>
+            <marker id={'arrowred'} refX={6} refY={6} markerWidth={30} markerHeight={30} orient={"auto"}>
                 <path d={"M 0 0 12 6 0 12 3 6"} fill={"red"}/>
+            </marker>
+            <marker id={'arrowgray'} refX={6} refY={6} markerWidth={30} markerHeight={30} orient={"auto"}>
+                <path d={"M 0 0 12 6 0 12 3 6"} fill={"gray"}/>
             </marker>
             <filter id='shadow' colorInterpolationFilters="sRGB">
                 <feComponentTransfer in="SourceGraphic">
@@ -96,11 +99,11 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,...props},r
         <rect className={'area'} width={'100%'} height={'100%'} opacity={0}/>
         <g className="lasso-group" ref={gRef}>
             <g className={'axis'}>
-                {axis&&axis.feature.map(a=><g key={a.name}><line x1={a[0][0]} y1={a[0][1]} x2={a[1][0]} y2={a[1][1]}
-                                           stroke={'red'} strokeWidth={2} markerEnd={`url(#arrowRed)`}/>
-                    <text x={a[1][0]} y={a[1][1]} textAnchor={"middle"} dy={a[1][1]>a[0][1] ? 15:-15}
+                {axis&&axis.feature.map((a,i)=><g key={a.name} opacity={i===selectedSer?1:0.2}><line x1={a[0][0]} y1={a[0][1]} x2={a[1][0]} y2={a[1][1]}
+                                           stroke={i===selectedSer?'red':'gray'} strokeWidth={2} markerEnd={`url(#arrow${(i===selectedSer)?'red':'gray'})`}/>
+                    {(i===selectedSer)&&<text x={a[1][0]} y={a[1][1]} textAnchor={"middle"} dy={a[1][1]>a[0][1] ? 15:-15}
                           filter="url(#shadow)"
-                          fill={'red'} >{a.name}</text>
+                          fill={i===selectedSer?'red':'gray'} >{a.name}</text>}
                 </g>)}
             </g>
             {lassoPolygon.value&&<>

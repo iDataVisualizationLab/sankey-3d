@@ -10,7 +10,7 @@ import Tooltip from "@mui/material/Tooltip/Tooltip";
 import './pcachart.css'
 const xscale = d3.scaleLinear();
 const yscale = d3.scaleLinear();
-export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMap,...props},ref)=> {
+export const PCAchart = React.forwardRef(({DIM=2,dimensions,selectedSer,setSelectedComputeMap,...props},ref)=> {
     const canvasRef = useRef();
     const zoomRef = useRef({x:0,y:0,k:1});
     const lassoRef = useRef();
@@ -19,6 +19,7 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
     const r = 2;
     const [data,setData] = useState([]);
     const [isPan,setPan] = useState('select');
+    const [message,setMessage] = useState('');
     useEffect(()=>{
         d3.select(canvasRef.current).call(d3.zoom()
             .scaleExtent([1, 8])
@@ -41,8 +42,8 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
                 } else {
                     delete d._color;
                     if(!comps[d.data.key])
-                        comps[d.data.key] = [];
-                    comps[d.data.key].push(d.data.timestep)
+                        comps[d.data.key] = {};
+                    comps[d.data.key][d.data.timestep]=true
                 }
             });
             setSelectedComputeMap(comps)
@@ -63,6 +64,28 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
         setData(data);
     },[data]);
     useImperativeHandle(ref, () => ({
+        setIntanceHihghlight: function setIntanceHihghlight(d){
+
+            if(d) {
+                let highlight = data.find(e => (e.data.key === d.data.key) && (e.data.timestep === d.data.timestep));
+                if (highlight) {
+                    console.log(highlight)
+                    data.highlight = highlight;
+                    if (message !== '')
+                        setMessage('');
+                } else {
+                    delete data.highlight;
+                    setMessage('Not included in current plot!');
+                }
+                zoomed(data);
+                setData(data);
+            }else{
+                delete data.highlight;
+                setMessage('');
+                zoomed(data);
+                setData(data);
+            }
+        },
         calculatePCA: function calculatePCA(data){
 
             const dataIn = [];
@@ -123,7 +146,7 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
 
             setData(solution);
         }
-    }),[dimensions]);
+    }),[dimensions,data,message]);
     // useEffect(()=>{
     //     zoomed(d3.zoomIdentity);
     // },[data])
@@ -137,13 +160,34 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
         context.clearRect(0, 0, width, height);
         context.translate(transform.x, transform.y);
         context.scale(transform.k, transform.k);
-        for (const d of data) {
+
+        if (data.highlight){
+            for (const d of data) {
+                const [x, y] = d;
+                context.fillStyle = 'black';
+                context.beginPath();
+                context.moveTo(xscale(x) + r, yscale(y));
+                context.arc(xscale(x), yscale(y), r, 0, 2 * Math.PI);
+                context.fill();
+            }
+            const d = data.highlight;
             const [x, y] = d;
             context.fillStyle = d._color??d.data.color;
+            context.strokeStyle = 'yellow';
             context.beginPath();
-            context.moveTo(xscale(x) + r, yscale(y));
-            context.arc(xscale(x), yscale(y), r, 0, 2 * Math.PI);
+            context.moveTo(xscale(x) + r*5, yscale(y));
+            context.arc(xscale(x), yscale(y), r*5, 0, 2 * Math.PI);
+            context.stroke();
             context.fill();
+        }else{
+            for (const d of data) {
+                const [x, y] = d;
+                context.fillStyle = d._color??d.data.color;
+                context.beginPath();
+                context.moveTo(xscale(x) + r, yscale(y));
+                context.arc(xscale(x), yscale(y), r, 0, 2 * Math.PI);
+                context.fill();
+            }
         }
         // if (data.axis){
         //     data.axis.feature.forEach(d=>{
@@ -193,9 +237,11 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
     return <div style={{position: 'relative',width:'100%'}}>
         <canvas ref={canvasRef} width={width} height={height} style={{width:'100%'}}/>
         <Lasso ref={lassoRef} start={(d)=>handleLassoStart(d)} width={width} height={height}
+               selectedSer={selectedSer}
                axis={data.axis}
+               message={message}
                end={d=>handleLassoEnd(d)} disable={isPan==='pan'}/>
-        <div className={"floatMenu"} style={{position:'absolute',bottom:0,left:0}}>
+        <div className={"floatMenu"} style={{position:'absolute',bottom:0,left:0,display:"flex",alignItems:"center"}}>
             <ToggleButtonGroup
                 value={isPan}
                 exclusive
@@ -218,6 +264,9 @@ export const PCAchart = React.forwardRef(({DIM=2,dimensions,setSelectedComputeMa
                 </ToggleButton>
 
             </ToggleButtonGroup>
+            <div>
+                <span>{message}</span>
+            </div>
         </div>
     </div>
 });

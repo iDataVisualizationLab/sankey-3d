@@ -23,7 +23,7 @@ import Sankey, {horizontalSource, horizontalTarget} from "./Sankey";
 import * as d3 from "d3";
 import * as _ from "lodash";
 import ValueAxis from "./ValueAxis";
-import Grid from "@mui/material/Grid/Grid";
+import {Grid,Stack,Button} from "@mui/material";
 import {PCAchart} from "./PCAchart";
 import {viz} from "./leva/Viz";
 
@@ -40,13 +40,26 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
     const config3D = useControls("3D", {
         timeGap: {value: 5, min: 1, max: 10, step: 0.1, label: 'Bar height'},
         light: {value: 0.5, min: 0, max: 1, step: 0.01},
+        doubleView: {value: false, label:'Double View'},
         resetView: button((get) => {
 
-            cameraRef.current.pointOfView({x: -90, y: -50, z: 200, zoom: 30}, 4000);
+            cameraRef.current.pointOfView({x: -90, y: 50, z: 200, rx:0, ry:0, rz:0, zoom: 30}, 4000);
         }),
+        viewcontrol:viz({value:0,
+            label:'',
+            com:<Grid container xs={12} spacing={1} alignItems={'center'} className={"noCap"}>
+                <Grid item xs={4}><Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: -200, y: 1e-14, z: 1e-14, rx:0, ry:-Math.PI/2, rz:0}, 2000)}>Left</Button></Grid>
+                <Grid item xs={4}><Stack spacing={1}>
+                    <Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 1e-14, y: 200, z: 1e-14, rx:-Math.PI/2, ry:0, rz:0}, 2000)}>Top</Button>
+                    <Button variant="contained" size={'small'} fullWidth>Front</Button>
+                    <Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 1e-14, y: -200, z: 1e-14, rx:Math.PI/2, ry:0, rz:0}, 2000)}>Bottom</Button>
+                </Stack></Grid>
+                <Grid item xs={4}><Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 200, y: 0, z: 0, rx:0, ry:Math.PI/2, rz:0}, 2000)}>Right</Button></Grid>
+            </Grid>}),
         cameraAnimate: {value: false}
     });
     const cameraRef = useRef(null);
+    const camera2Ref = useRef(null);
     const sankeyhtml = useRef();
     const ref = useRef(null);
     const view1 = useRef(null);
@@ -60,11 +73,11 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
 
     const pcaSelect = useControls("PCA",{PCAchart:viz({value:0,
             label:'',
-            com:<div><PCAchart ref={pcaRef} dimensions={dimensions} setSelectedComputeMap={setSelectedComputeMap}/></div>}),
+            com:<div><PCAchart ref={pcaRef} dimensions={dimensions} selectedSer={selectedSer} setSelectedComputeMap={setSelectedComputeMap}/></div>}),
         Apply:button((get)=>{
             console.log('clicked apply')
             pcaRef.current.calculatePCA(_draw3DData)
-        })},[_draw3DData,dimensions])
+        })},[_draw3DData,dimensions,selectedSer])
     useEffect(() => {
         if (config3D.cameraAnimate)
             if (cameraRef.current) {
@@ -208,6 +221,7 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 comp,
                 timestep
             })));
+            console.log(flatmap)
             return flatmap;
         }
 
@@ -318,141 +332,143 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
         // }
         return (d) => d;
     }, [config.metricFilter, dimensions, selectedSer])
-    return <div ref={ref} className={"containerThree"}>
-        <div ref={view1} style={{position:'relative',width:'50%'}}/>
-        <div ref={view2} style={{position:'relative',width:'50%'}}/>
-        <div className="canvas">
-        <Canvas onCreated={(state) => state.events.connect(ref.current)}
-        >
-            <View index={1} track={view1}>
-                {/*<ambientLight intensity={config.light}/>*/}
-                {/*<pointLight position={[150, 150, 150]} intensity={0.55} />*/}
-                {/*<fog attach="fog" args={["red", 5, 35]} />*/}
-                {/*<ambientLight intensity={1.5} />*/}
-                <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
-                <directionalLight
-                    castShadow
-                    intensity={config3D.light}
-                    position={[50, 50, 25]}
-                    shadow-mapSize={[256, 256]}
-                    shadow-camera-left={-10}
-                    shadow-camera-right={10}
-                    shadow-camera-top={10}
-                    shadow-camera-bottom={-10}
-                />
-                <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
-                {/*<Suspense fallback={null}>*/}
-
-                    {/*<LayoutMap data={layout}/>*/}
-                    {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
-                    <group position={[0, (height / 100/2), 0]}>
-                    <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
-                        <NodeLayout data={draw3DData}
-                                    timeGap={config3D.timeGap}
-                                    getKey={getKey}
-                                    selectService={selectedSer}
-                                    // adjustscale={adjustscale()}
-                                    adjustscale={d=>d}
-                                    onUserhighlight={(d) => setUserHighlight(d)}
-                                    onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
-                        />
-                        <ValueAxis
-                            range={(dimensions[selectedSer] ? dimensions[selectedSer].range : [])}
-                            timeGap={config3D.timeGap}/>
-                    </group>
-                    {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
-                    {/*<TimeAxis data={time_stamp} timeGap={config3D.timeGap}/></>}*/}
-                    {/*<UserLayout data={users}/>*/}
-                    <Html transform distanceFactor={10} ref={sankeyhtml} zIndexRange={[1, 0]}
-                          // portal={view2}
-                          style={{pointerEvents: 'none'}}>
-                    <Sankey
-                        width={width} height={height}
-                        data={sankeyData}
-                        lineaScale={0}
-                        timespan={selectedTime}
-                        mode={'compute_num'}
-                        maxPerUnit={maxPerUnit}
-                        color={color}
-                        colorByName={colorByName}
-                        colorCluster={colorCluster}
-                        // colorBy={colorBy}
-                        colorBy={'name'}
-                        getMetric={getMetric}
-                        metrics={metrics}
-                        theme={theme}
-                        // mouseOver = {this.onMouseOverSankey.bind(this)}
-                        // mouseLeave = {this.onMouseLeaveSankey.bind(this)}
-                        // sankeyComputeSelected = {sankeyComputeSelected}
-                        sankeyResult={onHandleSankeyResult}
-                        userHighlight={userHighlight}
+    return <div className={"containerThree"}>
+        <div ref={view1} style={{position:'relative',width:config3D.doubleView?'50%':'100%', pointerEvents:'all'}}>
+            <div className="canvas">
+                <Canvas>
+                    {/*<ambientLight intensity={config.light}/>*/}
+                    {/*<pointLight position={[150, 150, 150]} intensity={0.55} />*/}
+                    {/*<fog attach="fog" args={["red", 5, 35]} />*/}
+                    {/*<ambientLight intensity={1.5} />*/}
+                    <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
+                    <directionalLight
+                        castShadow
+                        intensity={config3D.light}
+                        position={[50, 50, 25]}
+                        shadow-mapSize={[256, 256]}
+                        shadow-camera-left={-10}
+                        shadow-camera-right={10}
+                        shadow-camera-top={10}
+                        shadow-camera-bottom={-10}
                     />
-                    </Html>
-                    </group>
-                <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
-                <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-                    <planeGeometry />
-                    <shadowMaterial transparent opacity={0.3} />
-                </mesh>
-                {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
-                    {/*<GizmoViewcube/>*/}
-                {/*</GizmoHelper>*/}
-                {/*<BakeShadows />*/}
-                {/*</Suspense>*/}
-                {/*<Environment preset={"dawn"}/>*/}
-                <CustomCamera makeDefault ref={cameraRef}/>
-            </View>
+                    <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
+                    {/*<Suspense fallback={null}>*/}
 
-            <View index={2} track={view2}>
-                <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
-                <directionalLight
-                    castShadow
-                    intensity={config3D.light}
-                    position={[50, 50, 25]}
-                    shadow-mapSize={[256, 256]}
-                    shadow-camera-left={-10}
-                    shadow-camera-right={10}
-                    shadow-camera-top={10}
-                    shadow-camera-bottom={-10}
-                />
-                <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
-                {/*<Suspense fallback={null}>*/}
-                <group position={[0, (height / 100/2), 0]}>
-                    {/*<LayoutMap data={layout}/>*/}
+                        {/*<LayoutMap data={layout}/>*/}
+                        {/*/!*{data.map((d,i)=><group key={i} position={[...d.position]}>*!/*/}
 
-                    <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
-                        <NodeLayout data={draw3DData}
-                                    timeGap={config3D.timeGap}
-                                    getKey={getKey}
-                                    selectService={selectedSer2}
-                                    adjustscale={d=>d}
-                                    onUserhighlight={(d) => setUserHighlight(d)}
-                                    onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
+                        <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
+                            <NodeLayout data={draw3DData}
+                                        timeGap={config3D.timeGap}
+                                        getKey={getKey}
+                                        selectService={selectedSer}
+                                        // adjustscale={adjustscale()}
+                                        adjustscale={d=>d}
+                                        onUserhighlight={(d,comp) => {setUserHighlight(d); pcaRef.current.setIntanceHihghlight(comp)}}
+                                        onReleaseUserhighlight={() => {setUserHighlight(_userHighlight); pcaRef.current.setIntanceHihghlight()}}
+                            />
+                            <ValueAxis
+                                range={(dimensions[selectedSer] ? dimensions[selectedSer].range : [])}
+                                timeGap={config3D.timeGap}/>
+                        </group>
+                        {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
+                        {/*<TimeAxis data={time_stamp} timeGap={config3D.timeGap}/></>}*/}
+                        {/*<UserLayout data={users}/>*/}
+                        <Html transform distanceFactor={10} ref={sankeyhtml} zIndexRange={[1, 0]}
+                              portal={view1}
+                              style={{pointerEvents: 'none'}}>
+                        <Sankey
+                            width={width} height={height}
+                            data={sankeyData}
+                            lineaScale={0}
+                            timespan={selectedTime}
+                            mode={'compute_num'}
+                            maxPerUnit={maxPerUnit}
+                            color={color}
+                            colorByName={colorByName}
+                            colorCluster={colorCluster}
+                            // colorBy={colorBy}
+                            colorBy={'name'}
+                            getMetric={getMetric}
+                            metrics={metrics}
+                            theme={theme}
+                            // mouseOver = {this.onMouseOverSankey.bind(this)}
+                            // mouseLeave = {this.onMouseLeaveSankey.bind(this)}
+                            // sankeyComputeSelected = {sankeyComputeSelected}
+                            sankeyResult={onHandleSankeyResult}
+                            userHighlight={userHighlight}
                         />
-                        <ValueAxis
-                            range={(dimensions[selectedSer2] ? dimensions[selectedSer2].range : [])}
-                            timeGap={config3D.timeGap}/>
+                        </Html>
+                    <group position={[0, -(height / 100/2), 0]}>
+                        <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
+                        <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
+                            <planeGeometry />
+                            <shadowMaterial transparent opacity={0.3} />
+                        </mesh>
                     </group>
-                    {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
-                    {/*<TimeAxis data={time_stamp} timeGap={config3D.timeGap}/></>}*/}
-                    {/*<UserLayout data={users}/>*/}
-
-                </group>
-                <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
-                <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-                    <planeGeometry />
-                    <shadowMaterial transparent opacity={0.3} />
-                </mesh>
-                {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
-                {/*<GizmoViewcube/>*/}
-                {/*</GizmoHelper>*/}
-                {/*<BakeShadows />*/}
-                {/*</Suspense>*/}
-                <Environment preset={"dawn"}/>
-                <CustomCamera makeDefault  ref={cameraRef}/>
-            </View>
-        </Canvas>
+                    <GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={0}>
+                        <GizmoViewcube/>
+                    </GizmoHelper>
+                    {/*<BakeShadows />*/}
+                    {/*</Suspense>*/}
+                    {/*<Environment preset={"dawn"}/>*/}
+                    <CustomCamera ref={cameraRef}/>
+                </Canvas>
+            </div>
         </div>
+        {config3D.doubleView&&<div ref={view2} style={{position:'relative',width:config3D.doubleView?'50%':'100%', pointerEvents:'all'}}>
+            <div className="canvas">
+                <Canvas>
+                    <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
+                    <directionalLight
+                        castShadow
+                        intensity={config3D.light}
+                        position={[50, 50, 25]}
+                        shadow-mapSize={[256, 256]}
+                        shadow-camera-left={-10}
+                        shadow-camera-right={10}
+                        shadow-camera-top={10}
+                        shadow-camera-bottom={-10}
+                    />
+                    <OrthographicCamera makeDefault zoom={30} position={[-10, 10, 100]}/>
+                    {/*<Suspense fallback={null}>*/}
+                        {/*<LayoutMap data={layout}/>*/}
+
+                        <group position={[-(width / 100 + .4), (height / 100 + 1.4), 0]}>
+                            <NodeLayout data={draw3DData}
+                                        timeGap={config3D.timeGap}
+                                        getKey={getKey}
+                                        selectService={selectedSer2}
+                                        adjustscale={d=>d}
+                                        onUserhighlight={(d) => setUserHighlight(d)}
+                                        onReleaseUserhighlight={() => setUserHighlight(_userHighlight)}
+                            />
+                            <ValueAxis
+                                range={(dimensions[selectedSer2] ? dimensions[selectedSer2].range : [])}
+                                timeGap={config3D.timeGap}/>
+                        </group>
+                        {/*{(!stackOption)&&<><LineLayout data={line3D} timeGap={config3D.timeGap} selectService={selectService}/>*/}
+                        {/*<TimeAxis data={time_stamp} timeGap={config3D.timeGap}/></>}*/}
+                        {/*<UserLayout data={users}/>*/}
+
+
+                    <group position={[0, -(height / 100/2), 0]}>
+                        <gridHelper args={[1000, 200, '#151515', '#020202']} position={[0, -4, 0]} />
+                        <mesh scale={200} rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
+                            <planeGeometry />
+                            <shadowMaterial transparent opacity={0.3} />
+                        </mesh>
+                    </group>
+                    {/*<GizmoHelper alignment={"bottom-left"} margin={[80, 80]} renderPriority={2}>*/}
+                    {/*<GizmoViewcube/>*/}
+                    {/*</GizmoHelper>*/}
+                    {/*<BakeShadows />*/}
+                    {/*</Suspense>*/}
+                    <Environment preset={"dawn"}/>
+                    <CustomCamera makeDefault  ref={camera2Ref}/>
+                </Canvas>
+            </div>
+        </div>}
     </div>
 }
 export default Layout3D;
