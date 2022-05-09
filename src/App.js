@@ -113,7 +113,7 @@ function App() {
                     }, 1);
                 }
             }},
-        duration:{label:"Duration",value:3600000, options:[['1 hour', 3600000],['2 hours',7200000],['3 hours',9600000]].reduce((a,v)=>({...a,[v[0]]:v[1]}),{})},
+        // duration:{label:"Duration",value:3600000, options:[['1 hour', 3600000],['2 hours',7200000],['3 hours',9600000]].reduce((a,v)=>({...a,[v[0]]:v[1]}),{})},
         dataInfo:{label:"",value:"",rows:2,editable:false}
     }))
     const optionsColor = useMemo(()=>{
@@ -128,7 +128,7 @@ function App() {
         return option;
     },[scheme.users]);
     const [{selectedUser},setSelectedUser] = useControls("Setting",()=>({"selectedUser":{label:'User',value:undefined,options:optionsUser}}),[optionsUser]);
-    const [{selectedSer,selectedSer2},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"Bar chart by",value:0,
+    const [{selectedSer,selectedSer2},setSelectedSer] = useControls("Setting",()=>({selectedSer:{options:optionsColor,label:"View 1",value:0,
             onChange:(val)=>{
                 updateColor(_draw3DData,scheme,val);
                 set_draw3DData([..._draw3DData]);
@@ -138,7 +138,7 @@ function App() {
                 // if (dimensions[val])
                 //     setConfig({metricFilter: dimensions[val].range[0]})
             },transient:false},
-        selectedSer2:{options:dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {}),label:"Bar chart 2 by",value:0}
+        selectedSer2:{options:dimensions.reduce((a, v) => ({ ...a, [v.text]: v.index}), {}),label:"View 2",value:0}
     }),[dimensions,_draw3DData,draw3DData,scheme]);
     // useControls("Setting",()=>{
     //     console.log(dimensions,selectedSer,dimensions[selectedSer])

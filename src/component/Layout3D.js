@@ -51,12 +51,12 @@ const Layout3D = function ({time_stamp, sankeyData, maxPerUnit = 1, color, confi
                 <Grid item xs={4}><Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: -200, y: 1e-14, z: 1e-14, rx:0, ry:-Math.PI/2, rz:0}, 2000)}>Left</Button></Grid>
                 <Grid item xs={4}><Stack spacing={1}>
                     <Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 1e-14, y: 200, z: 1e-14, rx:-Math.PI/2, ry:0, rz:0}, 2000)}>Top</Button>
-                    <Button variant="contained" size={'small'} fullWidth>Front</Button>
+                    <Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 1e-14, y: 0, z: 200}, 2000)}>Front</Button>
                     <Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 1e-14, y: -200, z: 1e-14, rx:Math.PI/2, ry:0, rz:0}, 2000)}>Bottom</Button>
                 </Stack></Grid>
                 <Grid item xs={4}><Button variant="contained" size={'small'} fullWidth onClick={()=>cameraRef.current.pointOfView({x: 200, y: 0, z: 0, rx:0, ry:Math.PI/2, rz:0}, 2000)}>Right</Button></Grid>
             </Grid>}),
-        cameraAnimate: {value: false}
+        // cameraAnimate: {value: false}
     });
     const cameraRef = useRef(null);
     const camera2Ref = useRef(null);
