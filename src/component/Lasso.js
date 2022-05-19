@@ -103,7 +103,7 @@ const Lasso = React.forwardRef(({start,end,width,height,disable,axis,selectedSer
             <g className={'axis'}>
                 {axis&&axis.feature.map((a,i)=><g key={a.name} opacity={i===selectedSer?1:0.2}><line x1={a[0][0]} y1={a[0][1]} x2={a[1][0]} y2={a[1][1]}
                                            stroke={i===selectedSer?'red':'gray'} strokeWidth={2} markerEnd={`url(#arrow${(i===selectedSer)?'red':'gray'})`}
-                     onMouseOver={(e)=>setAxisOver({el:e.source,context:a.name})}
+                     onMouseOver={(e)=>{setAxisOver({el:e.target,content:a.name})}}
                      onMouseLeave={(e)=>setAxisOver(undefined)}
                 />
                     {(i===selectedSer)&&<text x={a[1][0]} y={a[1][1]} textAnchor={"middle"} dy={a[1][1]>a[0][1] ? 15:-15}

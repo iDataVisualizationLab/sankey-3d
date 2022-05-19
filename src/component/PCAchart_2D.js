@@ -7,71 +7,30 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import PanToolIcon from '@mui/icons-material/PanTool';
 import GestureIcon from '@mui/icons-material/Gesture';
 import Tooltip from "@mui/material/Tooltip/Tooltip";
-import {Canvas, extend} from "@react-three/fiber";
 import './pcachart.css'
-import {OrthographicCamera, Points, Segment, Segments, shaderMaterial} from "@react-three/drei";
-import CustomCamera from "./CustomCamera";
-import * as THREE from "three";
-
-
-const MyPointsMaterial = shaderMaterial(
-    {
-        u: 1,
-    },
-    /* glsl */ `
-    attribute float size;
-    attribute vec3 color;
-
-    varying vec3 vColor;
-
-    void main() {
-      vColor = color;
-      vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-      gl_PointSize = size * ( 300.0 / -mvPosition.z );
-      gl_Position = projectionMatrix * mvPosition;
-    }
-
-  `,
-    /* glsl */ `
-    varying vec4 vColor;
-
-    void main() {
-      gl_FragColor = vColor;
-
-      #include <tonemapping_fragment>
-      #include <encodings_fragment>
-    }
-  `
-)
-
-extend({ MyPointsMaterial })
-
-
 const xscale = d3.scaleLinear();
 const yscale = d3.scaleLinear();
-const zscale = d3.scaleLinear();
-const tempColor = new THREE.Color();
-export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelectedComputeMap,...props},ref)=> {
-    const cameraRef = useRef();
+export const PCAchart = React.forwardRef(({DIM=2,dimensions,selectedSer,setSelectedComputeMap,...props},ref)=> {
+    const canvasRef = useRef();
     const zoomRef = useRef({x:0,y:0,k:1});
     const lassoRef = useRef();
     const width=500;
     const height=500;
-    const r = 4;
+    const r = 2;
     const [data,setData] = useState([]);
     const [isPan,setPan] = useState('select');
     const [message,setMessage] = useState('');
-    // useEffect(()=>{
-    //     d3.select(cameraRef.current).call(d3.zoom()
-    //         .scaleExtent([1, 8])
-    //         .on("zoom", ({transform}) =>{
-    //             zoomRef.current = transform;
-    //             zoomed(data);
-    //         }));
-    //     zoomRef.current = d3.zoomIdentity;
-    //     zoomed(data);
-    //
-    // },[data]);
+    useEffect(()=>{
+        d3.select(canvasRef.current).call(d3.zoom()
+            .scaleExtent([1, 8])
+            .on("zoom", ({transform}) =>{
+                zoomRef.current = transform;
+                zoomed(data);
+            }));
+        zoomRef.current = d3.zoomIdentity;
+        zoomed(data);
+
+    },[data]);
     const handleLassoEnd = useCallback((lassoPolygon)=> {
         if (lassoPolygon) {
             const comps = {};
@@ -94,14 +53,14 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
             });
             setSelectedComputeMap(undefined)
         }
-        // zoomed(data);
+        zoomed(data);
         setData(data);
     },[data]);
     const handleLassoStart = useCallback((lassoPolygon)=> {
         data.forEach((d) => {
             delete d._color;
         });
-        // zoomed(data);
+        zoomed(data);
         setData(data);
     },[data]);
     useImperativeHandle(ref, () => ({
@@ -110,6 +69,7 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
             if(d) {
                 let highlight = data.find(e => (e.data.key === d.data.key) && (e.data.timestep === d.data.timestep));
                 if (highlight) {
+                    console.log(highlight)
                     data.highlight = highlight;
                     if (message !== '')
                         setMessage('');
@@ -117,12 +77,12 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
                     delete data.highlight;
                     setMessage('Not included in current plot!');
                 }
-                // zoomed(data);
+                zoomed(data);
                 setData(data);
             }else{
                 delete data.highlight;
                 setMessage('');
-                // zoomed(data);
+                zoomed(data);
                 setData(data);
             }
         },
@@ -154,52 +114,35 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
 
             let xrange = d3.extent(solution, d => d[0]);
             let yrange = d3.extent(solution, d => d[1]);
-            let zrange = d3.extent(solution, d => d[2]);
-            xscale.range([-1, 1]);
-            yscale.range([-1, 1]);
-            zscale.range([-1, 1]);
-            const ratio = 1;
-            if ((yrange[1] - yrange[0]) / (xrange[1] - xrange[0]) > ratio) {
+            xscale.range([0, width]);
+            yscale.range([0, height]);
+            const ratio = height / width;
+            if ((yrange[1] - yrange[0]) / (xrange[1] - xrange[0]) > height / width) {
                 yscale.domain(yrange);
                 let delta = ((yrange[1] - yrange[0]) / ratio - (xrange[1] - xrange[0])) / 2;
-                xscale.domain([xrange[0] - delta, xrange[1] + delta]);
-                let deltaz = ((yrange[1] - yrange[0]) / ratio - (zrange[1] - zrange[0])) / 2;
-                zscale.domain([zrange[0] - deltaz, zrange[1] + deltaz]);
+                xscale.domain([xrange[0] - delta, xrange[1] + delta])
             } else {
                 xscale.domain(xrange);
                 let delta = ((xrange[1] - xrange[0]) * ratio - (yrange[1] - yrange[0])) / 2;
-                yscale.domain([yrange[0] - delta, yrange[1] + delta]);
-                let deltaz = ((xrange[1] - xrange[0]) / ratio - (zrange[1] - zrange[0])) / 2;
-                zscale.domain([zrange[0] - deltaz, zrange[1] + deltaz]);
+                yscale.domain([yrange[0] - delta, yrange[1] + delta])
             }
-            const root = [xscale(0),yscale(0),zscale(0)]
+
             const feature = dimensions.map(function (key, i) {
-                let brand = [root,d3.range(0,DIM).map(dim=>B[i][chosenPC[dim]])];
+                let brand = [[xscale(0),yscale(0)],d3.range(0,DIM).map(dim=>B[i][chosenPC[dim]])];
                 brand.name = key.text;
                 return brand
             });
-
             let multiplyBrands = Math.sqrt(d3.max([
-                distance(root,[xscale.range()[0],yscale.range()[0],zscale.range()[0]]),
-                distance(root,[xscale.range()[0],yscale.range()[0],zscale.range()[1]]),
-                distance(root,[xscale.range()[0],yscale.range()[1],zscale.range()[0]]),
-                distance(root,[xscale.range()[0],yscale.range()[1],zscale.range()[1]]),
-                distance(root,[xscale.range()[1],yscale.range()[0],zscale.range()[0]]),
-                distance(root,[xscale.range()[1],yscale.range()[0],zscale.range()[1]]),
-                distance(root,[xscale.range()[1],yscale.range()[1],zscale.range()[0]]),
-                distance(root,[xscale.range()[1],yscale.range()[1],zscale.range()[1]]),
-            ])/d3.max(feature,d=>distance(root,[xscale(d[1][0]),yscale(d[1][1]),zscale(d[1][2])])));
+                distance([xscale(0),yscale(0),xscale.range()[0],yscale.range()[0]]),
+                distance([xscale(0),yscale(0),xscale.range()[0],yscale.range()[1]]),
+                distance([xscale(0),yscale(0),xscale.range()[1],yscale.range()[0]]),
+                distance([xscale(0),yscale(0),xscale.range()[1],yscale.range()[1]]),
+            ])/d3.max(feature,d=>distance([xscale(0),yscale(0),xscale(d[1][0]),yscale(d[1][1])])));
             feature.forEach(f=>{
                 f[1][0] = xscale(f[1][0]*multiplyBrands);
                 f[1][1] = yscale(f[1][1]*multiplyBrands);
-                f[1][2] = zscale(f[1][2]*multiplyBrands);
             });
-
-            solution.axis = {feature};
-
-            solution.positionsBuffer = Float32Array.from(new Array(solution.length).fill().flatMap((_, i) => [xscale(solution[i][0]),yscale(solution[i][1]),zscale(solution[i][2])]));
-            solution.colorsBuffer = Float32Array.from(new Array(solution.length).fill().flatMap((_, i) => [...tempColor.set(solution[i]._color??solution[i].data.color).toArray()]))
-            solution.sizesBuffer = Float32Array.from(new Array(solution.length).fill().flatMap((_, i) => [r]))
+            solution.axis = {feature}
 
             setData(solution);
         }
@@ -212,7 +155,7 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
         const transform =  zoomRef.current;
         if (lassoRef.current)
             lassoRef.current.zoom(transform)
-        const context = cameraRef.current.getContext('2d')
+        const context = canvasRef.current.getContext('2d')
         context.save();
         context.clearRect(0, 0, width, height);
         context.translate(transform.x, transform.y);
@@ -292,23 +235,7 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
 
 
     return <div style={{position: 'relative',width:'100%'}}>
-        <div style={{ position: "relative", width: '100%', paddingTop: '100%'}}>
-            <Canvas style={{position:'absolute', top:0}}>
-                <directionalLight position={[-10, -10, -5]} intensity={0.5}/>
-                <directionalLight
-                    intensity={1}
-                    position={[0, 0, 25]}
-                />
-                <OrthographicCamera makeDefault zoom={100} position={[0, 0, 20]}/>
-                <Points positions={data.positionsBuffer??[]} colors={data.colorsBuffer??[]} sizes={data.sizesBuffer??[]}>
-                    <pointsMaterial vertexColors toneMapped={false} transparent={true} alphaTest={0}/>
-                </Points>
-                <Segments lineWidth={2.0}>
-                    {data.axis&&data.axis.feature.map((a,i)=><Segment key={a.name} start={a[0]} end={a[1]} color={i===selectedSer?'red':'gray'} />)}
-                </Segments>
-                <CustomCamera makeDefault  ref={cameraRef}/>
-            </Canvas>
-        </div>
+        <canvas ref={canvasRef} width={width} height={height} style={{width:'100%'}}/>
         <Lasso ref={lassoRef} start={(d)=>handleLassoStart(d)} width={width} height={height}
                selectedSer={selectedSer}
                axis={data.axis}
@@ -344,10 +271,7 @@ export const PCAchart = React.forwardRef(({DIM=3,dimensions,selectedSer,setSelec
     </div>
 });
 
-//
-// function distance(d){
-//     return Math.sqrt((d[2]-d[0])*(d[2]-d[0])+(d[3]-d[1])*(d[3]-d[1]));
-// }
-function distance(a,b){
-    return Math.sqrt(d3.sum(a.map((d,i)=>(d-b[i])*(d-b[i]))));
+
+function distance(d){
+    return Math.sqrt((d[2]-d[0])*(d[2]-d[0])+(d[3]-d[1])*(d[3]-d[1]));
 }
